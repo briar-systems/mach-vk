@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+# TODO: add the "Generation drift" job once tools/gen.py is implemented — it
+# mirrors mach-gl's check, running `python3 tools/gen.py check` to fail CI if the
+# committed sources drift from the pinned tools/vk.xml.
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch released mach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/machdl
+          gh release download -R briar-systems/mach \
+            -p 'mach-*-x86_64-linux.tar.gz' -D /tmp/machdl --clobber
+          tar -xzf /tmp/machdl/mach-*-x86_64-linux.tar.gz -C /tmp/machdl
+          install -m 0755 /tmp/machdl/mach /usr/local/bin/mach
+          mach info
+
+      - name: Sync dependencies
+        run: mach dep pull
+
+      # the binding links nothing: no Vulkan loader, no ICD, no display.
+      - name: Test
+        run: mach test .

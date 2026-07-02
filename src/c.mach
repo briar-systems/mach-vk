@@ -1,0 +1,95 @@
+# vk.c: raw loaded-pointer layer for the Vulkan API (scaffold).
+#
+# Vulkan commands cannot be linked: an implementation exposes them only through
+# the loader chain. every command is therefore a module-level function pointer,
+# nil until a resolver fills it, carrying the C name and a C-faithful signature.
+# a command the running implementation does not export stays nil — the same
+# contract as in C.
+#
+# resolution walks the standard chain: a caller supplies the bootstrap
+# vkGetInstanceProcAddr, load_global resolves the instanceless global commands,
+# load_instance resolves instance-level commands once an instance exists, and
+# load_device narrows device-level commands through vkGetDeviceProcAddr for
+# dispatch without the instance trampoline.
+#
+# SCAFFOLD: this file is hand-written and declares only the loader typedefs, one
+# representative global command, and load_global, so the project compiles and
+# `mach test` pins the loaded-pointer call ABI before the generator lands. the
+# full command table and the load_instance / load_device resolvers are generated
+# by tools/gen.py from the pinned tools/vk.xml — see tools/README.md — and this
+# file is replaced wholesale.
+
+# GetInstanceProcAddr: resolves a command name against an instance (nil for the
+# global commands), returning the entry point or nil. mirrors
+# PFN_vkGetInstanceProcAddr; the bootstrap the caller provides.
+pub def GetInstanceProcAddr: fun(ptr, *u8) ptr;
+
+# GetDeviceProcAddr: resolves a command name against a device, returning the
+# entry point or nil. mirrors PFN_vkGetDeviceProcAddr; the narrowed dispatch
+# path for device-level commands.
+pub def GetDeviceProcAddr: fun(ptr, *u8) ptr;
+
+# vkEnumerateInstanceVersion: loaded pointer for the global command
+# vkEnumerateInstanceVersion; writes the loader's supported API version.
+pub var vkEnumerateInstanceVersion: fun(*u32) i32 = nil;
+
+# load_global: resolve the instanceless global commands through the caller's
+# bootstrap loader, passing a nil instance.
+# ---
+# gipa: the bootstrap vkGetInstanceProcAddr
+# ret:  the number of global commands resolved; unresolved pointers stay nil
+pub fun load_global(gipa: GetInstanceProcAddr) i64 {
+    var n: i64 = 0;
+    vkEnumerateInstanceVersion = gipa(nil, "vkEnumerateInstanceVersion"):~fun(*u32) i32;
+    if (vkEnumerateInstanceVersion != nil) { n = n + 1; }
+    ret n;
+}
+
+fun gipa_nil(instance: ptr, name: *u8) ptr {
+    ret nil;
+}
+
+var gipa_calls: i64 = 0;
+
+fun gipa_count(instance: ptr, name: *u8) ptr {
+    gipa_calls = gipa_calls + 1;
+    ret (?gipa_calls)::ptr;
+}
+
+# a nil loader resolves nothing and leaves the global table nil.
+test "c: load_global with a nil loader resolves nothing" {
+    val n: i64 = load_global(gipa_nil);
+    if (n != 0) { ret 1; }
+    if (vkEnumerateInstanceVersion != nil) { ret 1; }
+    ret 0;
+}
+
+# a stub loader that answers every name resolves the whole global table; the
+# count equals the number of loader calls, i.e. the generated global count.
+test "c: load_global with a stub loader resolves every global command" {
+    gipa_calls = 0;
+    val n: i64 = load_global(gipa_count);
+    if (n != gipa_calls) { ret 1; }
+    if (n <= 0) { ret 1; }
+    ret 0;
+}
+
+var abi_seen: u32 = 0;
+
+fun abi_fake(api: *u32) i32 {
+    @api = abi_seen;
+    ret 0;
+}
+
+# pin the loaded-pointer call ABI: a Mach fake stands in for the command and the
+# call must deliver the out-pointer and read its result back without a Vulkan
+# loader present.
+test "c: loaded-pointer call ABI" {
+    abi_seen = 0x00403000;
+    vkEnumerateInstanceVersion = abi_fake;
+    var ver: u32 = 0;
+    val r: i32 = vkEnumerateInstanceVersion(?ver);
+    if (r != 0) { ret 1; }
+    if (ver != 0x00403000) { ret 1; }
+    ret 0;
+}

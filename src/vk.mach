@@ -1,0 +1,20 @@
+# vk.vk: the flat public surface of the Vulkan bindings (scaffold).
+#
+# re-exports the declaration layers under one namespace so a bare `use vk;`
+# reaches the whole API as vk.load_global(...), vk.CreateInfo{...}, vk.SUCCESS.
+# the raw command table stays reachable as vk.c.vkCreateInstance for anyone who
+# wants C names.
+#
+# SCAFFOLD: today this forwards only the hand-written loader skeleton in vk.c so
+# the project compiles and `mach test` links a runnable binary. once tools/gen.py
+# lands it re-exports every generated type, handle, enum, struct, and command —
+# see tools/README.md — and this file is generated wholesale.
+
+# links the startup entrypoint so `mach test` over this library produces a binary.
+use std.runtime;
+
+fwd vk.c;
+fwd vk.c.GetInstanceProcAddr;
+fwd vk.c.GetDeviceProcAddr;
+fwd vk.c.load_global;
+fwd vk.c.vkEnumerateInstanceVersion;
