@@ -7,11 +7,16 @@ on:
 permissions:
   contents: read
 
-# TODO: add the "Generation drift" job once tools/gen.py is implemented — it
-# mirrors mach-gl's check, running `python3 tools/gen.py check` to fail CI if the
-# committed sources drift from the pinned tools/vk.xml.
-
 jobs:
+  generate:
+    name: Generation drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check generated sources against the registry
+        run: python3 tools/gen.py check
+
   test:
     name: Test Suite
     runs-on: ubuntu-latest

@@ -6,20 +6,18 @@ its layers from `gl.xml`: a pinned registry snapshot in, deterministic mach
 sources out, with a CI drift check that regenerates and diffs so the pin and the
 committed sources cannot fall apart.
 
-**Status: scaffold.** The layout and approach below are settled and encoded in
-`gen.py`, but the Vulkan emit is not yet implemented — `parse()` and the `gen_*`
-emitters raise `NotImplementedError`, and running `gen.py` reports the scaffold
-state. The `src/*.mach` files in the tree today are hand-written placeholders
-(a minimal compiling loader skeleton) that generation will replace wholesale.
+The generator covers the **core** Vulkan API (1.0–1.3). Extensions, video, and
+Vulkan SC are out of scope for now; they are added the same way when needed, by
+widening the feature walk.
 
 ## Registry
 
-`tools/vk.xml` will be a verbatim snapshot of `xml/vk.xml` from
+`tools/vk.xml` is a verbatim snapshot of `xml/vk.xml` from
 [KhronosGroup/Vulkan-Docs](https://github.com/KhronosGroup/Vulkan-Docs), pinned
-at an exact commit recorded in `REGISTRY_COMMIT`. The file is not yet vendored;
-it is fetched and pinned when the generator is implemented. `vk.xml` is the
-single machine-readable source of the Vulkan API — types, handles, enums,
-bitmasks, structs, commands, and the feature/extension sets that gate them.
+at the `v1.4.356` release — the exact commit is recorded in `REGISTRY_COMMIT`.
+`vk.xml` is the single machine-readable source of the Vulkan API — types,
+handles, enums, bitmasks, structs, commands, and the feature/extension sets that
+gate them.
 
 ## Output layout
 
@@ -46,14 +44,21 @@ plus the loader chain.
 
 ## Approach
 
-1. **Parse.** Walk `<feature api="vulkan">` for core 1.0–1.3, applying
-   `<require>` and `<remove>` to accumulate the live set of types, enums, and
-   commands, then resolve each through the registry's `<type>`, `<enums>`, and
-   `<command>` graphs. Extensions are added on demand, gated the same way.
-2. **Map types.** Vulkan base C types resolve to mach scalars (`uint32_t` →
-   `u32`, `VkBool32` → `u32`, `VkDeviceSize` → `u64`, ...); dispatchable and
-   non-dispatchable handles are opaque `ptr`; structs and unions become `rec`s
-   with C-identical layout; `PFN_*` function pointers become `def` typedefs.
+1. **Parse.** Walk the `<feature>` blocks for core 1.0–1.3 (filtering to the
+   `vulkan` api, skipping the `vulkansc` variants), applying `<require>` and
+   `<remove>` to accumulate the live set of types, enums, and commands, then
+   resolve each through the registry's `<type>`, `<enums>`, and `<command>`
+   graphs. A transitive closure over struct members and command signatures pulls
+   in every reachable type, stopping at scalar leaves.
+2. **Map types.** Scalar base types resolve straight to mach scalars (`uint32_t`
+   → `u32`, `VkBool32` → `u32`, `VkDeviceSize` → `u64`, `VkFlags` → `u32`,
+   `VkFlags64` → `u64`); enums are their underlying `i32` and bitmasks their
+   underlying `u32`/`u64` at use sites, with the enumerant values emitted as
+   constants in `enums.mach`. Handles (dispatchable and non-dispatchable alike)
+   are opaque pointer-sized `def` aliases; structs and unions become `rec`s and
+   `uni`s with C-identical layout; `PFN_*` function pointers become `def`
+   fun-type aliases. `pNext` is always a raw `ptr`, and `const char*` /
+   `const char* const*` map to `*u8` / `**u8`.
 3. **Classify dispatch.** Each command is tagged global, instance, or device by
    the type of its first parameter, which decides the resolver that fills it:
    - **global** — no dispatchable handle (`vkCreateInstance`,
@@ -66,7 +71,7 @@ plus the loader chain.
 4. **Emit deterministically.** Stable ordering, C names and C-faithful types, so
    `gen.py check` produces a byte-identical diff against the committed sources.
 
-## Usage (once implemented)
+## Usage
 
 ```
 tools/gen.py            regenerate the src/*.mach declaration layers
