@@ -1,7 +1,5 @@
 [project]
 id = "vk"
-name = "Mach Vulkan bindings"
-description = "Mach Vulkan bindings"
 version = "0.1.0"
 src = "src"
 out = "out/{target.name}/{profile.name}"
@@ -23,15 +21,19 @@ abi = "sysv64"
 
 [profile.debug]
 opt = 0
+debug = true
 
 [profile.release]
 opt = 2
+debug = false
 
 [artifact.vk]
 kind = "static"
 entry = "vk.mach"
 out = "lib/vk"
 targets = ["*"]
+link = []
+need = []
 
 [dep.mach-std]
 git = "https://github.com/briar-systems/mach-std"
