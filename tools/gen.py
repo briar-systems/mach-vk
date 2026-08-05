@@ -13,8 +13,8 @@
 #                           any drift; this is what CI's generation-drift job runs
 #
 # stdlib only; output is deterministic so the committed sources and the registry
-# pin cannot drift apart. only the core API (Vulkan 1.0..1.3) is generated;
-# extensions, video, and Vulkan SC are out of scope for this pass.
+# pin cannot drift apart. the core API (Vulkan 1.0..1.3) plus the curated
+# EXTENSIONS allowlist below are generated; video and Vulkan SC stay out of scope.
 
 import difflib
 import os
@@ -26,6 +26,25 @@ REGISTRY_COMMIT = "73836865422f9e28e17069a96cceef6d0ece1ff8"
 
 # highest core feature version generated; the registry may describe newer ones.
 MAX_VERSION = 1.3
+
+# curated extension allowlist, generated on top of the core feature set: the WSI
+# chain a windowing layer needs (surface, swapchain, and the four platform
+# surface extensions) plus the debugging surface. order fixes emission order.
+#
+# the platform surface extensions need no target gating. every OS-header type
+# they touch is a pointer or an XID-width integer, so their declarations are
+# identical on every target and cost nothing where the platform is absent; a
+# command the running loader does not export simply stays nil, the same contract
+# every other command carries.
+EXTENSIONS = [
+    "VK_KHR_surface",
+    "VK_KHR_swapchain",
+    "VK_KHR_xlib_surface",
+    "VK_KHR_wayland_surface",
+    "VK_KHR_win32_surface",
+    "VK_EXT_metal_surface",
+    "VK_EXT_debug_utils",
+]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XML = os.path.join(ROOT, "tools", "vk.xml")
@@ -62,7 +81,19 @@ SCALAR = {
     "VkSampleMask": "u32",
     "VkFlags": "u32",
     "VkFlags64": "u64",
+    # OS-header leaves the platform surface extensions pass by value: the win32
+    # handles are pointer-sized, and an Xlib Window/VisualID is an XID (unsigned
+    # long) on the LP64 targets mach builds for.
+    "HINSTANCE": "ptr",
+    "HWND": "ptr",
+    "Window": "u64",
+    "VisualID": "u64",
 }
+
+# OS-header leaves the platform surface extensions only ever name through a
+# pointer. they are opaque to Vulkan and to mach alike, so they collapse the same
+# way void does: Display* / wl_surface* / const CAMetalLayer* are all just ptr.
+OPAQUE = {"Display", "wl_display", "wl_surface", "CAMetalLayer"}
 
 # dispatch tiers, keyed by the type of a command's first parameter. a command's
 # tier decides which resolver fills it: load_global (no dispatchable handle),
@@ -74,12 +105,14 @@ DEVICE_DISPATCH = ("VkDevice", "VkQueue", "VkCommandBuffer")
 # base of the reserved enum-extension number range (registry convention).
 EXT_ENUM_BASE = 1000000000
 
-# module prefixes a referenced type carries when named from each generated file.
-# types.mach names its own handles/fns bare; structs.mach reaches handles/fns
-# through the types module and its own records bare; c.mach reaches both.
-QUAL_TYPES = {"type": "", "record": "structs."}
-QUAL_STRUCTS = {"type": "types.", "record": ""}
-QUAL_C = {"type": "types.", "record": "structs."}
+# module prefixes a referenced type carries when named from each generated file,
+# keyed by the referenced category. records and callback signatures are mutually
+# recursive in the C API -- a struct holds a PFN member, and a PFN takes a struct
+# pointer -- so they share structs.mach; handles are leaves and stay in
+# types.mach, which then depends on nothing.
+QUAL_TYPES = {"handle": "", "record": "", "fn": ""}
+QUAL_STRUCTS = {"handle": "types.", "record": "", "fn": ""}
+QUAL_C = {"handle": "types.", "record": "structs.", "fn": "structs."}
 
 
 def ident(name):
@@ -114,6 +147,22 @@ def api_ok(elem):
     # excludes it (e.g. api="vulkansc").
     a = elem.get("api")
     return a is None or "vulkan" in a.split(",")
+
+
+def depends_ok(expr):
+    # a <require depends="..."> guard over core versions and extension names. the
+    # registry's grammar is a boolean expression (, is and, + is or); every guard
+    # the allowlist actually carries is a single term, so requiring every named
+    # term to be generated is exact here and errs toward omission elsewhere.
+    if not expr:
+        return True
+    for tok in re.findall(r"[A-Za-z0-9_]+", expr):
+        if tok.startswith("VK_VERSION_"):
+            if float(tok[len("VK_VERSION_"):].replace("_", ".")) > MAX_VERSION:
+                return False
+        elif tok not in EXTENSIONS:
+            return False
+    return True
 
 
 def parse_c_int(s):
@@ -239,9 +288,9 @@ class Generator:
         if base in SCALAR:
             return SCALAR[base]
         if base in self.handle_set:
-            return quals["type"] + type_name(base)
+            return quals["handle"] + type_name(base)
         if base in self.fn_set:
-            return quals["type"] + pfn_name(base)
+            return quals["fn"] + pfn_name(base)
         if base in self.enum_type_set:
             return "i32"
         if base in self.bitmask_set:
@@ -251,7 +300,7 @@ class Generator:
         raise KeyError("unmapped type: " + str(base))
 
     def mach_type(self, base, depth, arrays, quals):
-        if base == "void":
+        if base == "void" or base in OPAQUE:
             core = "" if depth == 0 else "*" * (depth - 1) + "ptr"
         else:
             core = "*" * depth + self.resolve_base(base, quals)
@@ -303,18 +352,31 @@ class Generator:
             if api_ok(f) and float(f.get("number")) <= MAX_VERSION
         ]
 
+        # core features first, then the allowlist in EXTENSIONS order; an
+        # extension's number is the default extnumber its enumerants extend by.
+        sections = [(f, None) for f in features]
+        by_name = {
+            e.get("name"): e for e in reg.root.findall("./extensions/extension")
+            if "vulkan" in (e.get("supported") or "").split(",")
+        }
+        for name in EXTENSIONS:
+            if name not in by_name:
+                raise KeyError("allowlisted extension missing from the registry: " + name)
+            sections.append((by_name[name], int(by_name[name].get("number"))))
+
         req_types = []
         req_type_set = set()
         cmd_order = []
         cmd_set = set()
-        ext_enums = []       # <enum extends=...> from core features
-        const_names = []     # standalone API constants referenced by core
+        ext_enums = []       # (<enum extends=...>, default extnumber)
+        const_names = []     # standalone API constants referenced by the surface
         const_seen = set()
-        for f in features:
+        ext_consts = []      # (c_name, ctype, value) from extension <require> blocks
+        for src, extnum in sections:
             for sec in ("require", "remove"):
                 add_sec = sec == "require"
-                for r in f.findall(sec):
-                    if not api_ok(r):
+                for r in src.findall(sec):
+                    if not api_ok(r) or not depends_ok(r.get("depends")):
                         continue
                     for c in r:
                         if not api_ok(c):
@@ -333,7 +395,12 @@ class Generator:
                                 cmd_order.remove(n)
                         elif c.tag == "enum" and add_sec:
                             if c.get("extends"):
-                                ext_enums.append(c)
+                                ext_enums.append((c, extnum))
+                            elif extnum is not None and c.get("value") is not None:
+                                # an extension's own name / spec-version constant
+                                if c.get("name") not in const_seen:
+                                    const_seen.add(c.get("name"))
+                                    ext_consts.append((c.get("name"), c.get("value")))
                             elif not any(c.get(k) for k in ("value", "bitpos", "offset", "alias")):
                                 if c.get("name") not in const_seen:
                                     const_seen.add(c.get("name"))
@@ -395,10 +462,10 @@ class Generator:
                         self.const_values[nm] = parse_c_int(e.get("value"))
                     api_consts.append((nm, ctype, e.get("value")))
 
-        return cmd_order, ext_enums, api_consts
+        return cmd_order, ext_enums, api_consts, ext_consts
 
     def build(self):
-        cmd_order, ext_enums, api_consts = self.collect()
+        cmd_order, ext_enums, api_consts, ext_consts = self.collect()
         reg = self.reg
         model = Model()
 
@@ -416,7 +483,7 @@ class Generator:
             if nm in self.struct_set or nm in self.union_set:
                 model.records.append(self.build_record(t, nm))
 
-        model.enums = self.build_enums(ext_enums, api_consts)
+        model.enums = self.build_enums(ext_enums, api_consts, ext_consts)
 
         for cn in cmd_order:
             model.commands.append(self.build_command(cn))
@@ -424,8 +491,8 @@ class Generator:
         return model
 
     def funcpointer_sig(self, elem):
-        args = [self.declarator_type(p, QUAL_TYPES) for p in elem.findall("param")]
-        ret = self.declarator_type(elem.find("proto"), QUAL_TYPES)
+        args = [self.declarator_type(p, QUAL_STRUCTS) for p in elem.findall("param")]
+        ret = self.declarator_type(elem.find("proto"), QUAL_STRUCTS)
         sig = "fun({})".format(", ".join(args))
         return sig + (" " + ret if ret else "")
 
@@ -448,7 +515,7 @@ class Generator:
             params.append((ident(p.find("name").text), self.declarator_type(p, QUAL_C)))
         return Command(cn, ret, params, self.tier(c))
 
-    def build_enums(self, ext_enums, api_consts):
+    def build_enums(self, ext_enums, api_consts, ext_consts):
         reg = self.reg
         groups = {}  # group name -> (kind, bitwidth)
 
@@ -464,21 +531,21 @@ class Generator:
             if g:
                 register(g)
 
-        raw = {}  # C name -> (group, spec-elem)
+        raw = {}  # C name -> (group, spec-elem, default extnumber)
         for gname in groups:
             for e in reg.enum_blocks[gname].findall("enum"):
                 if e.get("name") and api_ok(e):
-                    raw[e.get("name")] = (gname, e)
-        for e in ext_enums:
+                    raw[e.get("name")] = (gname, e, None)
+        for e, extnum in ext_enums:
             if e.get("extends") in groups:
-                raw[e.get("name")] = (e.get("extends"), e)
+                raw[e.get("name")] = (e.get("extends"), e, extnum)
 
         values = {}
 
         def value_of(c_name, guard=()):
             if c_name in values:
                 return values[c_name]
-            _, e = raw[c_name]
+            _, e, extnum = raw[c_name]
             if e.get("alias"):
                 target = e.get("alias")
                 if target in guard or target not in raw:
@@ -489,7 +556,10 @@ class Generator:
             elif e.get("bitpos") is not None:
                 v = 1 << int(e.get("bitpos"))
             elif e.get("offset") is not None:
-                v = EXT_ENUM_BASE + (int(e.get("extnumber")) - 1) * 1000 + int(e.get("offset"))
+                # an enumerant inside an <extension> inherits that extension's
+                # number unless it names another's explicitly.
+                num = int(e.get("extnumber") or extnum)
+                v = EXT_ENUM_BASE + (num - 1) * 1000 + int(e.get("offset"))
                 if e.get("dir") == "-":
                     v = -v
             else:
@@ -498,7 +568,7 @@ class Generator:
             return v
 
         out = []
-        for c_name, (gname, _) in raw.items():
+        for c_name, (gname, _, _num) in raw.items():
             kind, bitwidth = groups[gname]
             v = value_of(c_name)
             if kind == "bitmask":
@@ -510,6 +580,14 @@ class Generator:
         for nm, ctype, val in api_consts:
             width, literal = const_literal(ctype, val)
             out.append(Enum(enum_name(nm), width, literal))
+
+        # an extension's own constants: the name string a consumer passes to
+        # ppEnabledExtensionNames, and its integer spec version.
+        for nm, val in ext_consts:
+            if val.startswith('"'):
+                out.append(Enum(enum_name(nm), "*u8", val))
+            else:
+                out.append(Enum(enum_name(nm), "u32", str(parse_c_int(val))))
 
         out.sort(key=lambda e: e.name)
         return out
@@ -531,13 +609,14 @@ def const_literal(ctype, val):
 
 
 HEADER_TYPES = """\
-# base handle and function-pointer type aliases for core Vulkan (generated)
+# base handle type aliases for Vulkan (generated)
 #
 # opaque handles (dispatchable and non-dispatchable alike) are pointer-sized and
-# declared as ptr aliases so a consumer names them by their Vulkan identity; the
-# PFN_vk* callback signatures become fun-type aliases. scalar base types
-# (VkBool32, VkDeviceSize, VkFlags, ...) and enum/bitmask types resolve straight
-# to mach scalars at their use sites and carry no alias here.
+# declared as ptr aliases so a consumer names them by their Vulkan identity.
+# scalar base types (VkBool32, VkDeviceSize, VkFlags, ...) and enum/bitmask types
+# resolve straight to mach scalars at their use sites and carry no alias here.
+# handles are leaves, so this layer depends on nothing; the PFN_vk* callback
+# signatures live beside the records they reference, in vk.structs.
 #
 # GENERATED by tools/gen.py from the pinned tools/vk.xml; do not edit by hand.
 """
@@ -554,13 +633,16 @@ HEADER_ENUMS = """\
 """
 
 HEADER_STRUCTS = """\
-# core Vulkan structs and unions as C-identical records (generated)
+# Vulkan structs, unions, and callback signatures (generated)
 #
 # one pub rec per struct and pub uni per union, fields in declaration order with
-# their C names preserved. every pNext is a raw ptr; handles, nested records,
-# and function pointers reference their vk.types aliases; enums and bitmasks are
-# their underlying integers. layout follows the natural C rule, so size and
-# offsets match the Vulkan ABI.
+# their C names preserved. every pNext is a raw ptr; handles reference their
+# vk.types aliases; enums and bitmasks are their underlying integers. layout
+# follows the natural C rule, so size and offsets match the Vulkan ABI.
+#
+# the PFN_vk* callback signatures share this layer because the C type graph makes
+# them mutually recursive with the records: a struct holds a callback member and a
+# callback takes a struct pointer.
 #
 # GENERATED by tools/gen.py from the pinned tools/vk.xml; do not edit by hand.
 """
@@ -606,10 +688,6 @@ def gen_types(model):
         out.append("# the {} handle".format(c_name))
         out.append("pub def {}: ptr;".format(name))
     out.append("")
-    for fn in model.fns:
-        out.append("# the PFN_vk{} callback signature".format(fn.name))
-        out.append("pub def {}: {};".format(fn.name, fn.sig))
-    out.append("")
     out.append('test "types: a handle is pointer-sized and opaque" {')
     out.append("    if ($size_of(Instance) != 8) { ret 1; }")
     out.append("    if ($size_of(Device) != 8) { ret 1; }")
@@ -646,6 +724,10 @@ def gen_enums(model):
 
 def gen_structs(model):
     out = [HEADER_STRUCTS, "use vk.types;", ""]
+    for fn in model.fns:
+        out.append("# the PFN_vk{} callback signature".format(fn.name))
+        out.append("pub def {}: {};".format(fn.name, fn.sig))
+    out.append("")
     for r in model.records:
         noun = "structure" if r.kind == "rec" else "union"
         out.append("# the {} {}".format(r.cname, noun))
@@ -809,7 +891,7 @@ def gen_vk(model):
     for name, _ in model.handles:
         out.append("fwd types.{};".format(name))
     for fn in model.fns:
-        out.append("fwd types.{};".format(fn.name))
+        out.append("fwd structs.{};".format(fn.name))
     for e in model.enums:
         out.append("fwd enums.{};".format(e.name))
     for r in model.records:
