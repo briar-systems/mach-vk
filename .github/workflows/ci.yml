@@ -41,3 +41,70 @@ jobs:
       # the binding links nothing: no Vulkan loader, no ICD, no display.
       - name: Test
         run: mach test .
+
+  targets:
+    name: Cross-target build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux-x86_64, windows-x86_64, darwin-x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch released mach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/machdl
+          gh release download -R briar-systems/mach \
+            -p 'mach-*-x86_64-linux.tar.gz' -D /tmp/machdl --clobber
+          tar -xzf /tmp/machdl/mach-*-x86_64-linux.tar.gz -C /tmp/machdl
+          install -m 0755 /tmp/machdl/mach /usr/local/bin/mach
+          mach info
+
+      - name: Sync dependencies
+        run: mach dep pull
+
+      # the declarations are platform-agnostic, so every target builds the same
+      # surface; this proves it rather than assuming it.
+      - name: Build ${{ matrix.target }}
+        run: mach build . --target ${{ matrix.target }} --profile release
+
+  smoke:
+    name: Vulkan smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install a Vulkan loader and the lavapipe software ICD
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-tools
+          vulkaninfo --summary
+
+      - name: Fetch released mach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/machdl
+          gh release download -R briar-systems/mach \
+            -p 'mach-*-x86_64-linux.tar.gz' -D /tmp/machdl --clobber
+          tar -xzf /tmp/machdl/mach-*-x86_64-linux.tar.gz -C /tmp/machdl
+          install -m 0755 /tmp/machdl/mach /usr/local/bin/mach
+          mach info
+
+      - name: Sync dependencies
+        working-directory: test/smoke
+        run: mach dep pull
+
+      # a separate project precisely so the binding's own test run stays
+      # link-free; this one links the loader and drives a live ICD through
+      # instance, physical devices, device, and queue.
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          mach build test/smoke
+          mach run test/smoke
