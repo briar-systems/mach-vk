@@ -44,9 +44,9 @@ pub var vkGetPhysicalDeviceQueueFamilyProperties: fun(types.PhysicalDevice, *u32
 # loaded pointer for the instance-level command vkGetPhysicalDeviceMemoryProperties
 pub var vkGetPhysicalDeviceMemoryProperties: fun(types.PhysicalDevice, *structs.PhysicalDeviceMemoryProperties) = nil;
 # loaded pointer for the instance-level command vkGetInstanceProcAddr
-pub var vkGetInstanceProcAddr: fun(types.Instance, *u8) types.VoidFunction = nil;
+pub var vkGetInstanceProcAddr: fun(types.Instance, *u8) structs.VoidFunction = nil;
 # loaded pointer for the device-level command vkGetDeviceProcAddr
-pub var vkGetDeviceProcAddr: fun(types.Device, *u8) types.VoidFunction = nil;
+pub var vkGetDeviceProcAddr: fun(types.Device, *u8) structs.VoidFunction = nil;
 # loaded pointer for the instance-level command vkCreateDevice
 pub var vkCreateDevice: fun(types.PhysicalDevice, *structs.DeviceCreateInfo, *structs.AllocationCallbacks, *types.Device) i32 = nil;
 # loaded pointer for the device-level command vkDestroyDevice
@@ -455,6 +455,70 @@ pub var vkCmdSetRasterizerDiscardEnable: fun(types.CommandBuffer, u32) = nil;
 pub var vkCmdSetDepthBiasEnable: fun(types.CommandBuffer, u32) = nil;
 # loaded pointer for the device-level command vkCmdSetPrimitiveRestartEnable
 pub var vkCmdSetPrimitiveRestartEnable: fun(types.CommandBuffer, u32) = nil;
+# loaded pointer for the instance-level command vkDestroySurfaceKHR
+pub var vkDestroySurfaceKHR: fun(types.Instance, types.SurfaceKHR, *structs.AllocationCallbacks) = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceSurfaceSupportKHR
+pub var vkGetPhysicalDeviceSurfaceSupportKHR: fun(types.PhysicalDevice, u32, types.SurfaceKHR, *u32) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceSurfaceCapabilitiesKHR
+pub var vkGetPhysicalDeviceSurfaceCapabilitiesKHR: fun(types.PhysicalDevice, types.SurfaceKHR, *structs.SurfaceCapabilitiesKHR) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceSurfaceFormatsKHR
+pub var vkGetPhysicalDeviceSurfaceFormatsKHR: fun(types.PhysicalDevice, types.SurfaceKHR, *u32, *structs.SurfaceFormatKHR) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceSurfacePresentModesKHR
+pub var vkGetPhysicalDeviceSurfacePresentModesKHR: fun(types.PhysicalDevice, types.SurfaceKHR, *u32, *i32) i32 = nil;
+# loaded pointer for the device-level command vkCreateSwapchainKHR
+pub var vkCreateSwapchainKHR: fun(types.Device, *structs.SwapchainCreateInfoKHR, *structs.AllocationCallbacks, *types.SwapchainKHR) i32 = nil;
+# loaded pointer for the device-level command vkDestroySwapchainKHR
+pub var vkDestroySwapchainKHR: fun(types.Device, types.SwapchainKHR, *structs.AllocationCallbacks) = nil;
+# loaded pointer for the device-level command vkGetSwapchainImagesKHR
+pub var vkGetSwapchainImagesKHR: fun(types.Device, types.SwapchainKHR, *u32, *types.Image) i32 = nil;
+# loaded pointer for the device-level command vkAcquireNextImageKHR
+pub var vkAcquireNextImageKHR: fun(types.Device, types.SwapchainKHR, u64, types.Semaphore, types.Fence, *u32) i32 = nil;
+# loaded pointer for the device-level command vkQueuePresentKHR
+pub var vkQueuePresentKHR: fun(types.Queue, *structs.PresentInfoKHR) i32 = nil;
+# loaded pointer for the device-level command vkGetDeviceGroupPresentCapabilitiesKHR
+pub var vkGetDeviceGroupPresentCapabilitiesKHR: fun(types.Device, *structs.DeviceGroupPresentCapabilitiesKHR) i32 = nil;
+# loaded pointer for the device-level command vkGetDeviceGroupSurfacePresentModesKHR
+pub var vkGetDeviceGroupSurfacePresentModesKHR: fun(types.Device, types.SurfaceKHR, *u32) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDevicePresentRectanglesKHR
+pub var vkGetPhysicalDevicePresentRectanglesKHR: fun(types.PhysicalDevice, types.SurfaceKHR, *u32, *structs.Rect2D) i32 = nil;
+# loaded pointer for the device-level command vkAcquireNextImage2KHR
+pub var vkAcquireNextImage2KHR: fun(types.Device, *structs.AcquireNextImageInfoKHR, *u32) i32 = nil;
+# loaded pointer for the instance-level command vkCreateXlibSurfaceKHR
+pub var vkCreateXlibSurfaceKHR: fun(types.Instance, *structs.XlibSurfaceCreateInfoKHR, *structs.AllocationCallbacks, *types.SurfaceKHR) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceXlibPresentationSupportKHR
+pub var vkGetPhysicalDeviceXlibPresentationSupportKHR: fun(types.PhysicalDevice, u32, ptr, u64) u32 = nil;
+# loaded pointer for the instance-level command vkCreateWaylandSurfaceKHR
+pub var vkCreateWaylandSurfaceKHR: fun(types.Instance, *structs.WaylandSurfaceCreateInfoKHR, *structs.AllocationCallbacks, *types.SurfaceKHR) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceWaylandPresentationSupportKHR
+pub var vkGetPhysicalDeviceWaylandPresentationSupportKHR: fun(types.PhysicalDevice, u32, ptr) u32 = nil;
+# loaded pointer for the instance-level command vkCreateWin32SurfaceKHR
+pub var vkCreateWin32SurfaceKHR: fun(types.Instance, *structs.Win32SurfaceCreateInfoKHR, *structs.AllocationCallbacks, *types.SurfaceKHR) i32 = nil;
+# loaded pointer for the instance-level command vkGetPhysicalDeviceWin32PresentationSupportKHR
+pub var vkGetPhysicalDeviceWin32PresentationSupportKHR: fun(types.PhysicalDevice, u32) u32 = nil;
+# loaded pointer for the instance-level command vkCreateMetalSurfaceEXT
+pub var vkCreateMetalSurfaceEXT: fun(types.Instance, *structs.MetalSurfaceCreateInfoEXT, *structs.AllocationCallbacks, *types.SurfaceKHR) i32 = nil;
+# loaded pointer for the device-level command vkSetDebugUtilsObjectNameEXT
+pub var vkSetDebugUtilsObjectNameEXT: fun(types.Device, *structs.DebugUtilsObjectNameInfoEXT) i32 = nil;
+# loaded pointer for the device-level command vkSetDebugUtilsObjectTagEXT
+pub var vkSetDebugUtilsObjectTagEXT: fun(types.Device, *structs.DebugUtilsObjectTagInfoEXT) i32 = nil;
+# loaded pointer for the device-level command vkQueueBeginDebugUtilsLabelEXT
+pub var vkQueueBeginDebugUtilsLabelEXT: fun(types.Queue, *structs.DebugUtilsLabelEXT) = nil;
+# loaded pointer for the device-level command vkQueueEndDebugUtilsLabelEXT
+pub var vkQueueEndDebugUtilsLabelEXT: fun(types.Queue) = nil;
+# loaded pointer for the device-level command vkQueueInsertDebugUtilsLabelEXT
+pub var vkQueueInsertDebugUtilsLabelEXT: fun(types.Queue, *structs.DebugUtilsLabelEXT) = nil;
+# loaded pointer for the device-level command vkCmdBeginDebugUtilsLabelEXT
+pub var vkCmdBeginDebugUtilsLabelEXT: fun(types.CommandBuffer, *structs.DebugUtilsLabelEXT) = nil;
+# loaded pointer for the device-level command vkCmdEndDebugUtilsLabelEXT
+pub var vkCmdEndDebugUtilsLabelEXT: fun(types.CommandBuffer) = nil;
+# loaded pointer for the device-level command vkCmdInsertDebugUtilsLabelEXT
+pub var vkCmdInsertDebugUtilsLabelEXT: fun(types.CommandBuffer, *structs.DebugUtilsLabelEXT) = nil;
+# loaded pointer for the instance-level command vkCreateDebugUtilsMessengerEXT
+pub var vkCreateDebugUtilsMessengerEXT: fun(types.Instance, *structs.DebugUtilsMessengerCreateInfoEXT, *structs.AllocationCallbacks, *types.DebugUtilsMessengerEXT) i32 = nil;
+# loaded pointer for the instance-level command vkDestroyDebugUtilsMessengerEXT
+pub var vkDestroyDebugUtilsMessengerEXT: fun(types.Instance, types.DebugUtilsMessengerEXT, *structs.AllocationCallbacks) = nil;
+# loaded pointer for the instance-level command vkSubmitDebugUtilsMessageEXT
+pub var vkSubmitDebugUtilsMessageEXT: fun(types.Instance, i32, u32, *structs.DebugUtilsMessengerCallbackDataEXT) = nil;
 
 # resolve the instanceless global commands through the caller's bootstrap loader, passing a nil instance
 # ---
@@ -496,7 +560,7 @@ pub fun load_instance(gipa: GetInstanceProcAddr, instance: ptr) i64 {
     if (vkGetPhysicalDeviceQueueFamilyProperties != nil) { n = n + 1; }
     vkGetPhysicalDeviceMemoryProperties = gipa(instance, "vkGetPhysicalDeviceMemoryProperties"):~fun(types.PhysicalDevice, *structs.PhysicalDeviceMemoryProperties);
     if (vkGetPhysicalDeviceMemoryProperties != nil) { n = n + 1; }
-    vkGetInstanceProcAddr = gipa(instance, "vkGetInstanceProcAddr"):~fun(types.Instance, *u8) types.VoidFunction;
+    vkGetInstanceProcAddr = gipa(instance, "vkGetInstanceProcAddr"):~fun(types.Instance, *u8) structs.VoidFunction;
     if (vkGetInstanceProcAddr != nil) { n = n + 1; }
     vkCreateDevice = gipa(instance, "vkCreateDevice"):~fun(types.PhysicalDevice, *structs.DeviceCreateInfo, *structs.AllocationCallbacks, *types.Device) i32;
     if (vkCreateDevice != nil) { n = n + 1; }
@@ -530,6 +594,38 @@ pub fun load_instance(gipa: GetInstanceProcAddr, instance: ptr) i64 {
     if (vkGetPhysicalDeviceExternalSemaphoreProperties != nil) { n = n + 1; }
     vkGetPhysicalDeviceToolProperties = gipa(instance, "vkGetPhysicalDeviceToolProperties"):~fun(types.PhysicalDevice, *u32, *structs.PhysicalDeviceToolProperties) i32;
     if (vkGetPhysicalDeviceToolProperties != nil) { n = n + 1; }
+    vkDestroySurfaceKHR = gipa(instance, "vkDestroySurfaceKHR"):~fun(types.Instance, types.SurfaceKHR, *structs.AllocationCallbacks);
+    if (vkDestroySurfaceKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceSurfaceSupportKHR = gipa(instance, "vkGetPhysicalDeviceSurfaceSupportKHR"):~fun(types.PhysicalDevice, u32, types.SurfaceKHR, *u32) i32;
+    if (vkGetPhysicalDeviceSurfaceSupportKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR = gipa(instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"):~fun(types.PhysicalDevice, types.SurfaceKHR, *structs.SurfaceCapabilitiesKHR) i32;
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceSurfaceFormatsKHR = gipa(instance, "vkGetPhysicalDeviceSurfaceFormatsKHR"):~fun(types.PhysicalDevice, types.SurfaceKHR, *u32, *structs.SurfaceFormatKHR) i32;
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceSurfacePresentModesKHR = gipa(instance, "vkGetPhysicalDeviceSurfacePresentModesKHR"):~fun(types.PhysicalDevice, types.SurfaceKHR, *u32, *i32) i32;
+    if (vkGetPhysicalDeviceSurfacePresentModesKHR != nil) { n = n + 1; }
+    vkGetPhysicalDevicePresentRectanglesKHR = gipa(instance, "vkGetPhysicalDevicePresentRectanglesKHR"):~fun(types.PhysicalDevice, types.SurfaceKHR, *u32, *structs.Rect2D) i32;
+    if (vkGetPhysicalDevicePresentRectanglesKHR != nil) { n = n + 1; }
+    vkCreateXlibSurfaceKHR = gipa(instance, "vkCreateXlibSurfaceKHR"):~fun(types.Instance, *structs.XlibSurfaceCreateInfoKHR, *structs.AllocationCallbacks, *types.SurfaceKHR) i32;
+    if (vkCreateXlibSurfaceKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceXlibPresentationSupportKHR = gipa(instance, "vkGetPhysicalDeviceXlibPresentationSupportKHR"):~fun(types.PhysicalDevice, u32, ptr, u64) u32;
+    if (vkGetPhysicalDeviceXlibPresentationSupportKHR != nil) { n = n + 1; }
+    vkCreateWaylandSurfaceKHR = gipa(instance, "vkCreateWaylandSurfaceKHR"):~fun(types.Instance, *structs.WaylandSurfaceCreateInfoKHR, *structs.AllocationCallbacks, *types.SurfaceKHR) i32;
+    if (vkCreateWaylandSurfaceKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceWaylandPresentationSupportKHR = gipa(instance, "vkGetPhysicalDeviceWaylandPresentationSupportKHR"):~fun(types.PhysicalDevice, u32, ptr) u32;
+    if (vkGetPhysicalDeviceWaylandPresentationSupportKHR != nil) { n = n + 1; }
+    vkCreateWin32SurfaceKHR = gipa(instance, "vkCreateWin32SurfaceKHR"):~fun(types.Instance, *structs.Win32SurfaceCreateInfoKHR, *structs.AllocationCallbacks, *types.SurfaceKHR) i32;
+    if (vkCreateWin32SurfaceKHR != nil) { n = n + 1; }
+    vkGetPhysicalDeviceWin32PresentationSupportKHR = gipa(instance, "vkGetPhysicalDeviceWin32PresentationSupportKHR"):~fun(types.PhysicalDevice, u32) u32;
+    if (vkGetPhysicalDeviceWin32PresentationSupportKHR != nil) { n = n + 1; }
+    vkCreateMetalSurfaceEXT = gipa(instance, "vkCreateMetalSurfaceEXT"):~fun(types.Instance, *structs.MetalSurfaceCreateInfoEXT, *structs.AllocationCallbacks, *types.SurfaceKHR) i32;
+    if (vkCreateMetalSurfaceEXT != nil) { n = n + 1; }
+    vkCreateDebugUtilsMessengerEXT = gipa(instance, "vkCreateDebugUtilsMessengerEXT"):~fun(types.Instance, *structs.DebugUtilsMessengerCreateInfoEXT, *structs.AllocationCallbacks, *types.DebugUtilsMessengerEXT) i32;
+    if (vkCreateDebugUtilsMessengerEXT != nil) { n = n + 1; }
+    vkDestroyDebugUtilsMessengerEXT = gipa(instance, "vkDestroyDebugUtilsMessengerEXT"):~fun(types.Instance, types.DebugUtilsMessengerEXT, *structs.AllocationCallbacks);
+    if (vkDestroyDebugUtilsMessengerEXT != nil) { n = n + 1; }
+    vkSubmitDebugUtilsMessageEXT = gipa(instance, "vkSubmitDebugUtilsMessageEXT"):~fun(types.Instance, i32, u32, *structs.DebugUtilsMessengerCallbackDataEXT);
+    if (vkSubmitDebugUtilsMessageEXT != nil) { n = n + 1; }
     ret n;
 }
 
@@ -540,7 +636,7 @@ pub fun load_instance(gipa: GetInstanceProcAddr, instance: ptr) i64 {
 # ret   : the number of device commands resolved; unresolved pointers stay nil
 pub fun load_device(gdpa: GetDeviceProcAddr, device: ptr) i64 {
     var n: i64 = 0;
-    vkGetDeviceProcAddr = gdpa(device, "vkGetDeviceProcAddr"):~fun(types.Device, *u8) types.VoidFunction;
+    vkGetDeviceProcAddr = gdpa(device, "vkGetDeviceProcAddr"):~fun(types.Device, *u8) structs.VoidFunction;
     if (vkGetDeviceProcAddr != nil) { n = n + 1; }
     vkDestroyDevice = gdpa(device, "vkDestroyDevice"):~fun(types.Device, *structs.AllocationCallbacks);
     if (vkDestroyDevice != nil) { n = n + 1; }
@@ -912,6 +1008,38 @@ pub fun load_device(gdpa: GetDeviceProcAddr, device: ptr) i64 {
     if (vkCmdSetDepthBiasEnable != nil) { n = n + 1; }
     vkCmdSetPrimitiveRestartEnable = gdpa(device, "vkCmdSetPrimitiveRestartEnable"):~fun(types.CommandBuffer, u32);
     if (vkCmdSetPrimitiveRestartEnable != nil) { n = n + 1; }
+    vkCreateSwapchainKHR = gdpa(device, "vkCreateSwapchainKHR"):~fun(types.Device, *structs.SwapchainCreateInfoKHR, *structs.AllocationCallbacks, *types.SwapchainKHR) i32;
+    if (vkCreateSwapchainKHR != nil) { n = n + 1; }
+    vkDestroySwapchainKHR = gdpa(device, "vkDestroySwapchainKHR"):~fun(types.Device, types.SwapchainKHR, *structs.AllocationCallbacks);
+    if (vkDestroySwapchainKHR != nil) { n = n + 1; }
+    vkGetSwapchainImagesKHR = gdpa(device, "vkGetSwapchainImagesKHR"):~fun(types.Device, types.SwapchainKHR, *u32, *types.Image) i32;
+    if (vkGetSwapchainImagesKHR != nil) { n = n + 1; }
+    vkAcquireNextImageKHR = gdpa(device, "vkAcquireNextImageKHR"):~fun(types.Device, types.SwapchainKHR, u64, types.Semaphore, types.Fence, *u32) i32;
+    if (vkAcquireNextImageKHR != nil) { n = n + 1; }
+    vkQueuePresentKHR = gdpa(device, "vkQueuePresentKHR"):~fun(types.Queue, *structs.PresentInfoKHR) i32;
+    if (vkQueuePresentKHR != nil) { n = n + 1; }
+    vkGetDeviceGroupPresentCapabilitiesKHR = gdpa(device, "vkGetDeviceGroupPresentCapabilitiesKHR"):~fun(types.Device, *structs.DeviceGroupPresentCapabilitiesKHR) i32;
+    if (vkGetDeviceGroupPresentCapabilitiesKHR != nil) { n = n + 1; }
+    vkGetDeviceGroupSurfacePresentModesKHR = gdpa(device, "vkGetDeviceGroupSurfacePresentModesKHR"):~fun(types.Device, types.SurfaceKHR, *u32) i32;
+    if (vkGetDeviceGroupSurfacePresentModesKHR != nil) { n = n + 1; }
+    vkAcquireNextImage2KHR = gdpa(device, "vkAcquireNextImage2KHR"):~fun(types.Device, *structs.AcquireNextImageInfoKHR, *u32) i32;
+    if (vkAcquireNextImage2KHR != nil) { n = n + 1; }
+    vkSetDebugUtilsObjectNameEXT = gdpa(device, "vkSetDebugUtilsObjectNameEXT"):~fun(types.Device, *structs.DebugUtilsObjectNameInfoEXT) i32;
+    if (vkSetDebugUtilsObjectNameEXT != nil) { n = n + 1; }
+    vkSetDebugUtilsObjectTagEXT = gdpa(device, "vkSetDebugUtilsObjectTagEXT"):~fun(types.Device, *structs.DebugUtilsObjectTagInfoEXT) i32;
+    if (vkSetDebugUtilsObjectTagEXT != nil) { n = n + 1; }
+    vkQueueBeginDebugUtilsLabelEXT = gdpa(device, "vkQueueBeginDebugUtilsLabelEXT"):~fun(types.Queue, *structs.DebugUtilsLabelEXT);
+    if (vkQueueBeginDebugUtilsLabelEXT != nil) { n = n + 1; }
+    vkQueueEndDebugUtilsLabelEXT = gdpa(device, "vkQueueEndDebugUtilsLabelEXT"):~fun(types.Queue);
+    if (vkQueueEndDebugUtilsLabelEXT != nil) { n = n + 1; }
+    vkQueueInsertDebugUtilsLabelEXT = gdpa(device, "vkQueueInsertDebugUtilsLabelEXT"):~fun(types.Queue, *structs.DebugUtilsLabelEXT);
+    if (vkQueueInsertDebugUtilsLabelEXT != nil) { n = n + 1; }
+    vkCmdBeginDebugUtilsLabelEXT = gdpa(device, "vkCmdBeginDebugUtilsLabelEXT"):~fun(types.CommandBuffer, *structs.DebugUtilsLabelEXT);
+    if (vkCmdBeginDebugUtilsLabelEXT != nil) { n = n + 1; }
+    vkCmdEndDebugUtilsLabelEXT = gdpa(device, "vkCmdEndDebugUtilsLabelEXT"):~fun(types.CommandBuffer);
+    if (vkCmdEndDebugUtilsLabelEXT != nil) { n = n + 1; }
+    vkCmdInsertDebugUtilsLabelEXT = gdpa(device, "vkCmdInsertDebugUtilsLabelEXT"):~fun(types.CommandBuffer, *structs.DebugUtilsLabelEXT);
+    if (vkCmdInsertDebugUtilsLabelEXT != nil) { n = n + 1; }
     ret n;
 }
 

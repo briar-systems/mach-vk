@@ -6,9 +6,21 @@ its layers from `gl.xml`: a pinned registry snapshot in, deterministic mach
 sources out, with a CI drift check that regenerates and diffs so the pin and the
 committed sources cannot fall apart.
 
-The generator covers the **core** Vulkan API (1.0–1.3). Extensions, video, and
-Vulkan SC are out of scope for now; they are added the same way when needed, by
-widening the feature walk.
+The generator covers the **core** Vulkan API (1.0–1.3) plus a curated extension
+allowlist — the `EXTENSIONS` list at the top of `gen.py`:
+
+| extension | what it brings |
+| --- | --- |
+| `VK_KHR_surface` | the surface handle and physical-device surface queries |
+| `VK_KHR_swapchain` | swapchain creation, image acquisition, and present |
+| `VK_KHR_xlib_surface` | X11 surface creation |
+| `VK_KHR_wayland_surface` | Wayland surface creation |
+| `VK_KHR_win32_surface` | Win32 surface creation |
+| `VK_EXT_metal_surface` | Metal (MoltenVK) surface creation |
+| `VK_EXT_debug_utils` | debug messengers, object names, and command labels |
+
+Widening the allowlist is the whole cost of adding an extension: append its name
+and regenerate. Video and Vulkan SC stay out of scope.
 
 ## Registry
 
@@ -25,14 +37,24 @@ gate them.
 
 ```
 src/
-  types.mach    base type aliases and opaque handle definitions (generated)
-  enums.mach    enumerant and bitmask constants (generated)
-  structs.mach  struct and union records, C-identical layout (generated)
+  types.mach    opaque handle aliases (generated); a leaf layer, imports nothing
+  enums.mach    enumerant, bitmask, and extension-name constants (generated)
+  structs.mach  struct and union records with C-identical layout, plus the PFN_*
+                callback aliases (generated)
   c.mach        raw command table + loaders (generated): one pub var function
                 pointer per command, plus load_global / load_instance /
                 load_device walking the proc-addr chains
   vk.mach       library surface (generated): re-exports every symbol under vk.*
 ```
+
+The layer boundaries follow the C type graph's actual dependency order:
+`types` → `structs` → `c`. Handles are leaves — pointer-sized aliases that
+reference nothing — so they sit alone at the bottom. The `PFN_*` callback
+aliases share `structs.mach` with the records because the two are *mutually*
+recursive in C: `VkAllocationCallbacks` holds a `PFN_vkAllocationFunction`
+member, while `PFN_vkDebugUtilsMessengerCallbackEXT` takes a
+`VkDebugUtilsMessengerCallbackDataEXT*`. Mach refuses a circular module
+dependency, so a cycle in the type graph has to live inside one module.
 
 This is mach-gl's shape adapted to Vulkan's larger type surface: GL has only
 commands and enums, so mach-gl needs `c` + `enums`; Vulkan adds a rich type
@@ -45,11 +67,15 @@ plus the loader chain.
 ## Approach
 
 1. **Parse.** Walk the `<feature>` blocks for core 1.0–1.3 (filtering to the
-   `vulkan` api, skipping the `vulkansc` variants), applying `<require>` and
+   `vulkan` api, skipping the `vulkansc` variants), then the allowlisted
+   `<extension>` blocks in `EXTENSIONS` order, applying `<require>` and
    `<remove>` to accumulate the live set of types, enums, and commands, then
    resolve each through the registry's `<type>`, `<enums>`, and `<command>`
    graphs. A transitive closure over struct members and command signatures pulls
-   in every reachable type, stopping at scalar leaves.
+   in every reachable type, stopping at scalar leaves. A `<require depends=...>`
+   guard is honoured: a block is taken only when every core version and
+   extension it names is itself generated. An enumerant inside an extension
+   takes that extension's number as its `extnumber` unless it names another's.
 2. **Map types.** Scalar base types resolve straight to mach scalars (`uint32_t`
    → `u32`, `VkBool32` → `u32`, `VkDeviceSize` → `u64`, `VkFlags` → `u32`,
    `VkFlags64` → `u64`); enums are their underlying `i32` and bitmasks their
@@ -58,7 +84,12 @@ plus the loader chain.
    are opaque pointer-sized `def` aliases; structs and unions become `rec`s and
    `uni`s with C-identical layout; `PFN_*` function pointers become `def`
    fun-type aliases. `pNext` is always a raw `ptr`, and `const char*` /
-   `const char* const*` map to `*u8` / `**u8`.
+   `const char* const*` map to `*u8` / `**u8`. The OS-header leaves the platform
+   surface extensions touch need no headers and no target gating: `Display*`,
+   `wl_surface*`, and `const CAMetalLayer*` are opaque and collapse to `ptr` the
+   same way `void*` does, `HINSTANCE`/`HWND` are pointer-sized by value, and an
+   Xlib `Window`/`VisualID` is an XID (`u64` on the LP64 targets mach builds
+   for). The generated declarations are therefore identical on every target.
 3. **Classify dispatch.** Each command is tagged global, instance, or device by
    the type of its first parameter, which decides the resolver that fills it:
    - **global** — no dispatchable handle (`vkCreateInstance`,

@@ -1,0 +1,207 @@
+# acceptance smoke test (issue #7): drives mach-vk's generated surface through
+# the real system Vulkan loader end to end. lives outside the binding's own
+# manifest so the loader link never reaches the library's `mach test`.
+
+use std.runtime;
+use std.print;
+use std.types.string.str_equals;
+use vk;
+
+# the bootstrap entry point every other Vulkan command is resolved through
+ext fun vkGetInstanceProcAddr(instance: ptr, name: *u8) ptr;
+
+#[symbol("main")]
+fun main(argc: i64, argv: **u8) i64 {
+    print.println("== mach-vk smoke test ==");
+
+    val g: i64 = vk.load_global(vkGetInstanceProcAddr);
+    if (g <= 0) {
+        print.eprintln("load_global resolved nothing");
+        ret 1;
+    }
+    print.printlnf("load_global resolved {} global commands", g);
+
+    var api_version: u32 = 0;
+    val vr: i32 = vk.vkEnumerateInstanceVersion(?api_version);
+    if (vr != vk.SUCCESS) {
+        print.eprintlnf("vkEnumerateInstanceVersion failed: {}", vr);
+        ret 1;
+    }
+    val major: u32 = (api_version >> 22) & 0x7F;
+    val minor: u32 = (api_version >> 12) & 0x3FF;
+    val patch: u32 = api_version & 0xFFF;
+    print.printlnf("vulkan instance version: {}.{}.{}", major, minor, patch);
+
+    var app_info: vk.ApplicationInfo;
+    app_info.sType = vk.STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pNext = nil;
+    app_info.pApplicationName = "mach-vk-smoke";
+    app_info.applicationVersion = 0;
+    app_info.pEngineName = "none";
+    app_info.engineVersion = 0;
+    app_info.apiVersion = api_version;
+
+    var create_info: vk.InstanceCreateInfo;
+    create_info.sType = vk.STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    create_info.pNext = nil;
+    create_info.flags = 0;
+    create_info.pApplicationInfo = ?app_info;
+    create_info.enabledLayerCount = 0;
+    create_info.ppEnabledLayerNames = nil;
+    create_info.enabledExtensionCount = 0;
+    create_info.ppEnabledExtensionNames = nil;
+
+    var instance: vk.Instance = nil;
+    val cir: i32 = vk.vkCreateInstance(?create_info, nil, ?instance);
+    if (cir != vk.SUCCESS || instance == nil) {
+        print.eprintlnf("vkCreateInstance failed: {}", cir);
+        ret 1;
+    }
+    print.println("instance created");
+
+    val ic: i64 = vk.load_instance(vkGetInstanceProcAddr, instance);
+    if (ic <= 0) {
+        print.eprintln("load_instance resolved nothing");
+        ret 1;
+    }
+    print.printlnf("load_instance resolved {} instance commands", ic);
+
+    var pdev_count: u32 = 0;
+    var epr: i32 = vk.vkEnumeratePhysicalDevices(instance, ?pdev_count, nil);
+    if (epr != vk.SUCCESS || pdev_count == 0) {
+        print.eprintln("vkEnumeratePhysicalDevices found no devices");
+        ret 1;
+    }
+    print.printlnf("physical device count: {}", pdev_count);
+
+    var pdevs: [16]vk.PhysicalDevice;
+    var pdev_cap: u32 = 16;
+    if (pdev_count < pdev_cap) { pdev_cap = pdev_count; }
+    epr = vk.vkEnumeratePhysicalDevices(instance, ?pdev_cap, ?pdevs[0]);
+    if (epr != vk.SUCCESS) {
+        print.eprintln("vkEnumeratePhysicalDevices (fill) failed");
+        ret 1;
+    }
+    val pdev: vk.PhysicalDevice = pdevs[0];
+    if (pdev == nil) {
+        print.eprintln("first physical device handle is nil");
+        ret 1;
+    }
+
+    var qf_count: u32 = 0;
+    vk.vkGetPhysicalDeviceQueueFamilyProperties(pdev, ?qf_count, nil);
+    if (qf_count == 0) {
+        print.eprintln("no queue families reported");
+        ret 1;
+    }
+
+    var qfs: [16]vk.QueueFamilyProperties;
+    var qf_cap: u32 = 16;
+    if (qf_count < qf_cap) { qf_cap = qf_count; }
+    vk.vkGetPhysicalDeviceQueueFamilyProperties(pdev, ?qf_cap, ?qfs[0]);
+
+    val queue_family_unset: u32 = 0xFFFFFFFF;
+    var queue_family: u32 = queue_family_unset;
+    var qi: u32 = 0;
+    for (qi < qf_cap) {
+        if ((qfs[qi].queueFlags & vk.QUEUE_GRAPHICS_BIT) != 0) {
+            queue_family = qi;
+            brk;
+        }
+        qi = qi + 1;
+    }
+    if (queue_family == queue_family_unset) { queue_family = 0; }
+    print.printlnf("queue family count: {}, selected graphics-capable family: {}", qf_count, queue_family);
+
+    var priority: f32 = 1.0;
+    var qci: vk.DeviceQueueCreateInfo;
+    qci.sType = vk.STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    qci.pNext = nil;
+    qci.flags = 0;
+    qci.queueFamilyIndex = queue_family;
+    qci.queueCount = 1;
+    qci.pQueuePriorities = ?priority;
+
+    var dci: vk.DeviceCreateInfo;
+    dci.sType = vk.STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    dci.pNext = nil;
+    dci.flags = 0;
+    dci.queueCreateInfoCount = 1;
+    dci.pQueueCreateInfos = ?qci;
+    dci.enabledLayerCount = 0;
+    dci.ppEnabledLayerNames = nil;
+    dci.enabledExtensionCount = 0;
+    dci.ppEnabledExtensionNames = nil;
+    dci.pEnabledFeatures = nil;
+
+    var device: vk.Device = nil;
+    val cdr: i32 = vk.vkCreateDevice(pdev, ?dci, nil, ?device);
+    if (cdr != vk.SUCCESS || device == nil) {
+        print.eprintlnf("vkCreateDevice failed: {}", cdr);
+        ret 1;
+    }
+    print.println("logical device created");
+
+    val gdpa: vk.GetDeviceProcAddr = vkGetInstanceProcAddr(instance, "vkGetDeviceProcAddr"):~vk.GetDeviceProcAddr;
+    if (gdpa == nil) {
+        print.eprintln("failed to resolve vkGetDeviceProcAddr");
+        ret 1;
+    }
+    val dc: i64 = vk.load_device(gdpa, device);
+    if (dc <= 0) {
+        print.eprintln("load_device resolved nothing");
+        ret 1;
+    }
+    print.printlnf("load_device resolved {} device commands", dc);
+
+    var queue: vk.Queue = nil;
+    vk.vkGetDeviceQueue(device, queue_family, 0, ?queue);
+    if (queue == nil) {
+        print.eprintln("vkGetDeviceQueue returned a nil queue");
+        ret 1;
+    }
+    print.println("device queue obtained: non-nil");
+
+    # extension surface: enumerate instance extensions and confirm the
+    # generated KHR/EXT declarations reference real, linkable symbols
+    var ext_count: u32 = 0;
+    var eepr: i32 = vk.vkEnumerateInstanceExtensionProperties(nil, ?ext_count, nil);
+    if (eepr != vk.SUCCESS || ext_count == 0) {
+        print.eprintln("vkEnumerateInstanceExtensionProperties found no extensions");
+        ret 1;
+    }
+
+    var exts: [512]vk.ExtensionProperties;
+    var ext_cap: u32 = 512;
+    if (ext_count < ext_cap) { ext_cap = ext_count; }
+    eepr = vk.vkEnumerateInstanceExtensionProperties(nil, ?ext_cap, ?exts[0]);
+    if (eepr != vk.SUCCESS) {
+        print.eprintln("vkEnumerateInstanceExtensionProperties (fill) failed");
+        ret 1;
+    }
+
+    var has_surface: u8 = 0;
+    var has_debug_utils: u8 = 0;
+    var ei: u32 = 0;
+    for (ei < ext_cap) {
+        if (str_equals(?exts[ei].extensionName[0], vk.KHR_SURFACE_EXTENSION_NAME)) { has_surface = 1; }
+        if (str_equals(?exts[ei].extensionName[0], vk.EXT_DEBUG_UTILS_EXTENSION_NAME)) { has_debug_utils = 1; }
+        ei = ei + 1;
+    }
+    print.printlnf("extension count: {}", ext_count);
+    print.printlnf("{} present: {}", vk.KHR_SURFACE_EXTENSION_NAME, has_surface);
+    print.printlnf("{} present: {}", vk.EXT_DEBUG_UTILS_EXTENSION_NAME, has_debug_utils);
+
+    # reference the swapchain extension surface directly so the KHR_swapchain
+    # declarations are genuinely compiled and linked, not just generated
+    var swapchain_info: vk.SwapchainCreateInfoKHR;
+    swapchain_info.sType = vk.STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_info.pNext = nil;
+    swapchain_info.surface = nil;
+    print.printlnf("{} referenced, sType={}", vk.KHR_SWAPCHAIN_EXTENSION_NAME, swapchain_info.sType);
+
+    vk.vkDestroyDevice(device, nil);
+    vk.vkDestroyInstance(instance, nil);
+    print.println("== mach-vk smoke test passed ==");
+    ret 0;
+}
