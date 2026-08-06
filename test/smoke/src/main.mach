@@ -5,13 +5,24 @@
 use std.runtime;
 use std.print;
 use std.types.string.str_equals;
+use std.process.env;
 use vk;
 
-# the bootstrap entry point every other Vulkan command is resolved through
+# the bootstrap entry point every other Vulkan command is resolved through.
+# #[library] attribution is required on two-level-namespace targets (PE,
+# Mach-O): the logical name "vulkan" maps to the per-platform [link.vulkan-*]
+# entry that names the concrete loader (vulkan-1.dll / libMoltenVK.dylib).
+#[library("vulkan")]
 ext fun vkGetInstanceProcAddr(instance: ptr, name: *u8) ptr;
 
 #[symbol("main")]
 fun main(argc: i64, argv: **u8) i64 {
+    # link-only mode: verify the loader is found and the proc-addr chain
+    # resolves, without requiring a GPU/ICD. CI runners without a Vulkan
+    # ICD (headless windows) set VKSMOKE_LINK_ONLY=1.
+    var link_only_buf: [32]u8;
+    val link_only_len: i64 = env.get("VKSMOKE_LINK_ONLY", ?link_only_buf[0], 32);
+
     print.println("== mach-vk smoke test ==");
 
     val g: i64 = vk.load_global(vkGetInstanceProcAddr);
@@ -20,6 +31,12 @@ fun main(argc: i64, argv: **u8) i64 {
         ret 1;
     }
     print.printlnf("load_global resolved {} global commands", g);
+
+    if (link_only_len == 1 && link_only_buf[0] == '1') {
+        print.println("link-only mode: loader linked and resolved, skipping ICD-dependent steps");
+        print.println("== mach-vk smoke test passed (link-only) ==");
+        ret 0;
+    }
 
     var api_version: u32 = 0;
     val vr: i32 = vk.vkEnumerateInstanceVersion(?api_version);
