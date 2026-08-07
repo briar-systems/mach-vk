@@ -67,9 +67,11 @@ jobs:
         run: mach dep pull
 
       # the declarations are platform-agnostic, so every target builds the same
-      # surface; this proves it rather than assuming it.
+      # surface; this proves it rather than assuming it. the library only --
+      # the example links a real loader, and darwin's MoltenVK is probed on
+      # disk, so the example cross-builds only where its loader is installed.
       - name: Build ${{ matrix.target }}
-        run: mach build . --target ${{ matrix.target }} --profile release
+        run: mach build . --lib vk --target ${{ matrix.target }} --profile release
 
   smoke:
     name: Vulkan smoke test
@@ -97,17 +99,17 @@ jobs:
           mach info
 
       - name: Sync dependencies
-        working-directory: test/smoke
         run: mach dep pull
 
-      # a separate project precisely so the binding's own test run stays
-      # link-free; this one links the loader and drives a live ICD through
-      # instance, physical devices, device, and queue.
-      - name: Smoke test
+      # `mach test .` compiles the corpus and links no loader, so the example
+      # living in this project costs the library nothing. this job links the
+      # loader and drives a live ICD through instance, physical devices,
+      # device, and queue.
+      - name: Build and run example
         run: |
           set -euo pipefail
-          mach build test/smoke
-          mach run test/smoke
+          mach build . --bin example
+          mach run . --bin example
 
   windows-smoke:
     name: Windows loader verification
@@ -150,23 +152,22 @@ jobs:
 
       - name: Sync dependencies
         shell: bash
-        working-directory: test/smoke
         run: mach dep pull
 
-      - name: Build smoke test
+      - name: Build example
         shell: bash
-        run: mach build test/smoke --target windows-x86_64 --profile release
+        run: mach build . --bin example --target windows-x86_64 --profile release
 
       # a headless runner has the loader but no ICD, so the full test fails at
       # vkCreateInstance; fall back to link-only, which still proves the loader
       # loads and the vkGetInstanceProcAddr chain resolves
-      - name: Run smoke test
+      - name: Run example
         shell: bash
         run: |
           set -euo pipefail
-          mach run test/smoke --target windows-x86_64 --profile release || {
-            echo "full smoke test failed (no ICD on CI), falling back to link-only"
-            VKSMOKE_LINK_ONLY=1 mach run test/smoke --target windows-x86_64 --profile release
+          mach run . --bin example --target windows-x86_64 --profile release || {
+            echo "full example failed (no ICD on CI), falling back to link-only"
+            VK_EXAMPLE_LINK_ONLY=1 mach run . --bin example --target windows-x86_64 --profile release
           }
 
   darwin-smoke:
@@ -195,18 +196,17 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Sync dependencies
-        working-directory: test/smoke
         run: mach dep pull
 
-      - name: Build smoke test
-        run: mach build test/smoke --target darwin-x86_64 --profile release
+      - name: Build example
+        run: mach build . --bin example --target darwin-x86_64 --profile release
 
-      # try the full smoke test first (needs a GPU via MoltenVK); fall back to
+      # try the full example first (needs a GPU via MoltenVK); fall back to
       # link-only when the CI runner has no GPU available
-      - name: Run smoke test
+      - name: Run example
         run: |
           set -euo pipefail
-          mach run test/smoke --target darwin-x86_64 --profile release || {
+          mach run . --bin example --target darwin-x86_64 --profile release || {
             echo "full smoke test failed (likely no GPU), falling back to link-only"
-            VKSMOKE_LINK_ONLY=1 mach run test/smoke --target darwin-x86_64 --profile release
+            VK_EXAMPLE_LINK_ONLY=1 mach run . --bin example --target darwin-x86_64 --profile release
           }
