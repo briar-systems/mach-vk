@@ -127,14 +127,22 @@ declares the API that consumes SPIR-V modules and nothing about producing them.
 
 The declarations are platform-agnostic — the Vulkan ABI is identical across
 operating systems, so one generated surface serves all of them. What varies is
-the loader/ICD story, which the consumer owns: the OS's Vulkan loader
-(`libvulkan.so.1`, `libvulkan.1.dylib` via MoltenVK, `vulkan-1.dll`) resolves
-`vkGetInstanceProcAddr`, and mach-vk chains from there.
+the loader/ICD story, which the consumer owns: the platform's Vulkan
+implementation (`libvulkan.so.1` + an ICD, MoltenVK's `libMoltenVK.dylib`,
+`vulkan-1.dll` + an ICD) resolves `vkGetInstanceProcAddr`, and mach-vk chains
+from there.
 
 The Mach compiler currently targets the `x86_64`, `aarch64`, and `riscv64` ISAs
 across `linux`, `darwin`, and `windows`; `mach.toml` declares the three
 `x86_64` triples that are exercised today, and the bindings compile for any
 target the toolchain supports.
+
+Loader linking is CI-verified on all three declared triples: the smoke test
+links and runs against the system loader on linux (full session via the
+lavapipe software ICD), windows (link-only; headless runners have the loader
+but no ICD), and macOS (against Homebrew's MoltenVK, full session when the
+runner exposes a GPU, link-only otherwise). Anything beyond those triples is
+declared, not verified.
 
 ## Tests
 

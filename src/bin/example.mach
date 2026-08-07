@@ -1,18 +1,35 @@
-# acceptance smoke test (issue #7): drives mach-vk's generated surface through
-# the real system Vulkan loader end to end. lives outside the binding's own
-# manifest so the loader link never reaches the library's `mach test`.
+# the worked example for mach-vk, and the only thing that proves the binding
+# links against a real system Vulkan loader and resolves through it end to end.
+# builds instance -> physical device -> queue family -> logical device, then
+# touches the extension and swapchain surfaces so those declarations are
+# genuinely compiled and linked rather than merely generated.
+#
+# a headless runner has the loader but no ICD, so everything past
+# vkCreateInstance is unavailable there. VK_EXAMPLE_LINK_ONLY=1 stops after the
+# loader and the vkGetInstanceProcAddr chain, which is the part CI can prove.
 
 use std.runtime;
 use std.print;
 use std.types.string.str_equals;
+use std.process.env;
 use vk;
 
-# the bootstrap entry point every other Vulkan command is resolved through
+# the bootstrap entry point every other Vulkan command is resolved through.
+# #[library] attribution is required on two-level-namespace targets (PE,
+# Mach-O): the logical name "vulkan" maps to the per-platform [link.vulkan-*]
+# entry that names the concrete loader (vulkan-1.dll / libMoltenVK.dylib).
+#[library("vulkan")]
 ext fun vkGetInstanceProcAddr(instance: ptr, name: *u8) ptr;
 
 #[symbol("main")]
 fun main(argc: i64, argv: **u8) i64 {
-    print.println("== mach-vk smoke test ==");
+    # link-only mode: verify the loader is found and the proc-addr chain
+    # resolves, without requiring a GPU/ICD. CI runners without a Vulkan
+    # ICD (headless windows) set VK_EXAMPLE_LINK_ONLY=1.
+    var link_only_buf: [32]u8;
+    val link_only_len: i64 = env.get("VK_EXAMPLE_LINK_ONLY", ?link_only_buf[0], 32);
+
+    print.println("== mach-vk example ==");
 
     val g: i64 = vk.load_global(vkGetInstanceProcAddr);
     if (g <= 0) {
@@ -20,6 +37,12 @@ fun main(argc: i64, argv: **u8) i64 {
         ret 1;
     }
     print.printlnf("load_global resolved {} global commands", g);
+
+    if (link_only_len == 1 && link_only_buf[0] == '1') {
+        print.println("link-only mode: loader linked and resolved, skipping ICD-dependent steps");
+        print.println("== mach-vk example ok (link-only) ==");
+        ret 0;
+    }
 
     var api_version: u32 = 0;
     val vr: i32 = vk.vkEnumerateInstanceVersion(?api_version);
@@ -35,7 +58,7 @@ fun main(argc: i64, argv: **u8) i64 {
     var app_info: vk.ApplicationInfo;
     app_info.sType = vk.STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pNext = nil;
-    app_info.pApplicationName = "mach-vk-smoke";
+    app_info.pApplicationName = "mach-vk-example";
     app_info.applicationVersion = 0;
     app_info.pEngineName = "none";
     app_info.engineVersion = 0;
@@ -202,6 +225,6 @@ fun main(argc: i64, argv: **u8) i64 {
 
     vk.vkDestroyDevice(device, nil);
     vk.vkDestroyInstance(instance, nil);
-    print.println("== mach-vk smoke test passed ==");
+    print.println("== mach-vk example ok ==");
     ret 0;
 }
