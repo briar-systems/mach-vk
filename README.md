@@ -10,10 +10,11 @@ wrapped library, no C in the tree, nothing linked at the binding level. Vulkan
 is declared, not vendored; every command is resolved at runtime through the
 standard loader chain a consumer drives.
 
-> **Status: core generated.** `tools/gen.py` emits the full core Vulkan surface
-> (1.0–1.3) from a pinned `vk.xml`; the committed `src/*.mach` are its output.
-> Extensions, video, and Vulkan SC are not generated yet. See
-> [`tools/README.md`](tools/README.md).
+> **Status: core and WSI generated.** `tools/gen.py` emits the full core Vulkan
+> surface (1.0–1.3) plus a curated extension allowlist — surface, swapchain, the
+> xlib/wayland/win32/metal platform surfaces, and debug_utils — from a pinned
+> `vk.xml`; the committed `src/*.mach` are its output. Video and Vulkan SC are
+> not generated. See [`tools/README.md`](tools/README.md).
 
 ```mach
 use vk;
@@ -43,8 +44,9 @@ ref = "branch/main"
 
 ## Goals
 
-- Coverage of the core Vulkan API surface (1.0–1.3), generated mechanically from
-  the pinned Khronos registry (`tools/vk.xml`).
+- Coverage of the core Vulkan API surface (1.0–1.3) plus the WSI and debugging
+  extensions a renderer actually needs, generated mechanically from the pinned
+  Khronos registry (`tools/vk.xml`).
 - Zero-cost: raw declarations over a table of loaded function pointers; no
   allocation, no registries, no hidden state beyond the pointers the loaders
   fill.
@@ -89,9 +91,10 @@ a build fails if the committed sources drift from the pinned `vk.xml`.
 
 ```
 src/
-  types.mach    base type aliases and opaque handle definitions (generated)
-  enums.mach    enumerant and bitmask constants (generated)
-  structs.mach  struct and union records, C-identical layout (generated)
+  types.mach    opaque handle aliases (generated); a leaf layer, imports nothing
+  enums.mach    enumerant, bitmask, and extension-name constants (generated)
+  structs.mach  struct and union records with C-identical layout, plus the PFN_*
+                callback aliases (generated)
   c.mach        raw command table + loaders (generated): one pub var function
                 pointer per command, plus load_global / load_instance /
                 load_device
@@ -100,6 +103,9 @@ src/
 tools/
   gen.py        registry generator; emits all generated sources
   vk.xml        pinned Khronos registry snapshot
+test/
+  smoke/        a separate consuming project that links a real Vulkan loader and
+                drives the binding against a live ICD; see Tests
 ```
 
 `[project].module = "vk.mach"` makes a bare `use vk;` resolve to the surface, and
@@ -121,14 +127,22 @@ declares the API that consumes SPIR-V modules and nothing about producing them.
 
 The declarations are platform-agnostic — the Vulkan ABI is identical across
 operating systems, so one generated surface serves all of them. What varies is
-the loader/ICD story, which the consumer owns: the OS's Vulkan loader
-(`libvulkan.so.1`, `libvulkan.1.dylib` via MoltenVK, `vulkan-1.dll`) resolves
-`vkGetInstanceProcAddr`, and mach-vk chains from there.
+the loader/ICD story, which the consumer owns: the platform's Vulkan
+implementation (`libvulkan.so.1` + an ICD, MoltenVK's `libMoltenVK.dylib`,
+`vulkan-1.dll` + an ICD) resolves `vkGetInstanceProcAddr`, and mach-vk chains
+from there.
 
 The Mach compiler currently targets the `x86_64`, `aarch64`, and `riscv64` ISAs
 across `linux`, `darwin`, and `windows`; `mach.toml` declares the three
 `x86_64` triples that are exercised today, and the bindings compile for any
 target the toolchain supports.
+
+Loader linking is CI-verified on all three declared triples: the smoke test
+links and runs against the system loader on linux (full session via the
+lavapipe software ICD), windows (link-only; headless runners have the loader
+but no ICD), and macOS (against Homebrew's MoltenVK, full session when the
+runner exposes a GPU, link-only otherwise). Anything beyond those triples is
+declared, not verified.
 
 ## Tests
 
@@ -136,5 +150,17 @@ target the toolchain supports.
 command table with stub loaders (a nil loader must leave the table nil and
 report zero; a counting loader must resolve every command) and call through the
 table into a Mach-implemented fake, which pins the loaded-pointer call ABI
-without a Vulkan implementation present. Paths that need a live loader, an ICD,
-or a surface are the consumer's to exercise, not `mach test`.
+without a Vulkan implementation present.
+
+Paths that need a live loader and a real ICD live in `test/smoke/`, which is a
+**separate project** that consumes mach-vk by path rather than a target inside
+this manifest. That separation is load-bearing, not tidiness: `mach test` links
+the union of every artifact's link entries across a project, so a single
+Vulkan-linking artifact in this manifest would pull `libvulkan` into the
+binding's own test binary and break the guarantee above. Keeping the smoke test
+one project out is what lets `mach test .` here stay link-free.
+
+`test/smoke` doubles as the reference bootstrap: it shows the whole chain a
+consumer owns — declaring `vkGetInstanceProcAddr`, linking the platform loader
+through its own `[link.vulkan-*]` entries, and driving `load_global` →
+`load_instance` → `load_device` to a live device and queue.

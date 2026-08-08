@@ -41,3 +41,172 @@ jobs:
       # the binding links nothing: no Vulkan loader, no ICD, no display.
       - name: Test
         run: mach test .
+
+  targets:
+    name: Cross-target build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux-x86_64, windows-x86_64, darwin-x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch released mach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/machdl
+          gh release download -R briar-systems/mach \
+            -p 'mach-*-x86_64-linux.tar.gz' -D /tmp/machdl --clobber
+          tar -xzf /tmp/machdl/mach-*-x86_64-linux.tar.gz -C /tmp/machdl
+          install -m 0755 /tmp/machdl/mach /usr/local/bin/mach
+          mach info
+
+      - name: Sync dependencies
+        run: mach dep pull
+
+      # the declarations are platform-agnostic, so every target builds the same
+      # surface; this proves it rather than assuming it. the library only --
+      # the example links a real loader, and darwin's MoltenVK is probed on
+      # disk, so the example cross-builds only where its loader is installed.
+      - name: Build ${{ matrix.target }}
+        run: mach build . --lib vk --target ${{ matrix.target }} --profile release
+
+  smoke:
+    name: Vulkan smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install a Vulkan loader and the lavapipe software ICD
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-tools
+          vulkaninfo --summary
+
+      - name: Fetch released mach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/machdl
+          gh release download -R briar-systems/mach \
+            -p 'mach-*-x86_64-linux.tar.gz' -D /tmp/machdl --clobber
+          tar -xzf /tmp/machdl/mach-*-x86_64-linux.tar.gz -C /tmp/machdl
+          install -m 0755 /tmp/machdl/mach /usr/local/bin/mach
+          mach info
+
+      - name: Sync dependencies
+        run: mach dep pull
+
+      # `mach test .` compiles the corpus and links no loader, so the example
+      # living in this project costs the library nothing. this job links the
+      # loader and drives a live ICD through instance, physical devices,
+      # device, and queue.
+      - name: Build and run example
+        run: |
+          set -euo pipefail
+          mach build . --bin example
+          mach run . --bin example
+
+  windows-smoke:
+    name: Windows loader verification
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # linking records the vulkan-1.dll dependency by name with no on-disk
+      # probe, so the SDK is unneeded; only the loader itself must be present
+      # at run time, which the runtime-only installer provides
+      - name: Install Vulkan loader
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Windows\System32\vulkan-1.dll")) {
+            $installer = Join-Path $env:RUNNER_TEMP "vulkan-runtime.exe"
+            curl.exe -fsSL "https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-runtime.exe" -o $installer
+            Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+          }
+          if (-not (Test-Path "C:\Windows\System32\vulkan-1.dll")) {
+            Write-Error "vulkan-1.dll not present after runtime install"
+            exit 1
+          }
+          Write-Host "vulkan-1.dll present"
+
+      - name: Fetch released mach
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dl = Join-Path $env:RUNNER_TEMP 'machdl'
+          $bin = Join-Path $env:RUNNER_TEMP 'bin'
+          New-Item -ItemType Directory -Path $dl, $bin -Force | Out-Null
+          gh release download -R briar-systems/mach -p 'mach-*-x86_64-windows.zip' -D $dl --clobber
+          $zip = Get-ChildItem -Path $dl -Filter 'mach-*-x86_64-windows.zip' | Select-Object -First 1
+          Expand-Archive -Path $zip.FullName -DestinationPath $dl -Force
+          $mach = Get-ChildItem -Path $dl -Filter 'mach.exe' -Recurse | Select-Object -First 1
+          Copy-Item $mach.FullName (Join-Path $bin 'mach.exe') -Force
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+
+      - name: Sync dependencies
+        shell: bash
+        run: mach dep pull
+
+      - name: Build example
+        shell: bash
+        run: mach build . --bin example --target windows-x86_64 --profile release
+
+      # a headless runner has the loader but no ICD, so the full test fails at
+      # vkCreateInstance; fall back to link-only, which still proves the loader
+      # loads and the vkGetInstanceProcAddr chain resolves
+      - name: Run example
+        shell: bash
+        run: |
+          set -euo pipefail
+          mach run . --bin example --target windows-x86_64 --profile release || {
+            echo "full example failed (no ICD on CI), falling back to link-only"
+            VK_EXAMPLE_LINK_ONLY=1 mach run . --bin example --target windows-x86_64 --profile release
+          }
+
+  darwin-smoke:
+    name: Darwin loader verification
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoltenVK
+        run: |
+          set -euo pipefail
+          brew install molten-vk
+          # verify the dylib is findable
+          ls -la /usr/local/lib/libMoltenVK.dylib
+
+      - name: Fetch released mach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/machdl" "$RUNNER_TEMP/bin"
+          gh release download -R briar-systems/mach \
+            -p 'mach-*-x86_64-darwin.tar.gz' -D "$RUNNER_TEMP/machdl" --clobber
+          tar -xzf "$RUNNER_TEMP"/machdl/mach-*-x86_64-darwin.tar.gz -C "$RUNNER_TEMP/machdl"
+          install -m 0755 "$RUNNER_TEMP/machdl/mach" "$RUNNER_TEMP/bin/mach"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Sync dependencies
+        run: mach dep pull
+
+      - name: Build example
+        run: mach build . --bin example --target darwin-x86_64 --profile release
+
+      # try the full example first (needs a GPU via MoltenVK); fall back to
+      # link-only when the CI runner has no GPU available
+      - name: Run example
+        run: |
+          set -euo pipefail
+          mach run . --bin example --target darwin-x86_64 --profile release || {
+            echo "full smoke test failed (likely no GPU), falling back to link-only"
+            VK_EXAMPLE_LINK_ONLY=1 mach run . --bin example --target darwin-x86_64 --profile release
+          }

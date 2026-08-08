@@ -1,8 +1,6 @@
 [project]
 id = "vk"
-name = "Mach Vulkan bindings"
-description = "Mach Vulkan bindings"
-version = "0.1.0"
+version = "0.2.0"
 src = "src"
 out = "out/{target.name}/{profile.name}"
 
@@ -23,15 +21,62 @@ abi = "sysv64"
 
 [profile.debug]
 opt = 0
+debug = true
+simd = "scalarize"
 
 [profile.release]
 opt = 2
+debug = false
+simd = "scalarize"
 
 [artifact.vk]
 kind = "static"
 entry = "vk.mach"
 out = "lib/vk"
 targets = ["*"]
+link = []
+need = []
+
+# the worked example, and the only artifact that links a real loader. two
+# artifacts are declared, so a bare `mach build .` asks which one -- build the
+# library with `--lib vk` and the example with `--bin example`.
+[artifact.example]
+kind = "bin"
+entry = "bin/example.mach"
+out = "bin/example"
+targets = ["*"]
+link = ["vulkan-linux", "vulkan-windows", "vulkan-darwin"]
+need = []
+
+# the loader is named per platform and resolved by the system at run time.
+# linking records the dependency by name with no on-disk probe, so no SDK is
+# needed to build -- only the loader itself, at run time.
+[link.vulkan-linux]
+source  = "system"
+name    = "vulkan"
+library = "vulkan"
+os      = "linux"
+isa     = "*"
+abi     = "*"
+export  = false
+
+[link.vulkan-windows]
+source  = "system"
+name    = "vulkan-1.dll"
+library = "vulkan"
+os      = "windows"
+isa     = "*"
+abi     = "*"
+export  = false
+
+[link.vulkan-darwin]
+source  = "system"
+name    = "MoltenVK"
+library = "vulkan"
+os      = "darwin"
+isa     = "*"
+abi     = "*"
+export  = false
 
 [dep.mach-std]
 git = "https://github.com/briar-systems/mach-std"
