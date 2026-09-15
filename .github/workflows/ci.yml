@@ -36,7 +36,7 @@ jobs:
           mach info
 
       - name: Sync dependencies
-        run: mach dep pull
+        run: mach dep pull .
 
       # the binding links nothing: no Vulkan loader, no ICD, no display.
       - name: Test
@@ -64,7 +64,7 @@ jobs:
           mach info
 
       - name: Sync dependencies
-        run: mach dep pull
+        run: mach dep pull .
 
       # the declarations are platform-agnostic, so every target builds the same
       # surface; this proves it rather than assuming it. the library only --
@@ -99,7 +99,7 @@ jobs:
           mach info
 
       - name: Sync dependencies
-        run: mach dep pull
+        run: mach dep pull .
 
       # `mach test .` compiles the corpus and links no loader, so the example
       # living in this project costs the library nothing. this job links the
@@ -152,7 +152,7 @@ jobs:
 
       - name: Sync dependencies
         shell: bash
-        run: mach dep pull
+        run: mach dep pull .
 
       - name: Build example
         shell: bash
@@ -196,7 +196,7 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Sync dependencies
-        run: mach dep pull
+        run: mach dep pull .
 
       - name: Build example
         run: mach build . --bin example --target darwin-x86_64 --profile release
