@@ -53,7 +53,7 @@ SRC = os.path.join(ROOT, "src")
 # mach reserved keywords (grammar.md); a generated identifier matching one
 # exactly is renamed with a trailing underscore.
 KEYWORDS = set(
-    "asm brk cnt def ext fin for fun fwd if nil or pub rec ret test uni use val var".split()
+    "asm brk cnt def each error ext fin for fun fwd if in nil or pub rec ret sel tag test uni use val var".split()
 )
 
 # Vulkan / C base scalar leaves -> mach scalar type. handles, enums, bitmasks,
