@@ -1,6 +1,6 @@
 [project]
 id = "vk"
-version = "0.2.0"
+version = "0.3.0"
 src = "src"
 out = "out/{target.name}/{profile.name}"
 
@@ -8,6 +8,7 @@ out = "out/{target.name}/{profile.name}"
 isa = "x86_64"
 os  = "linux"
 abi = "sysv64"
+default = true
 
 [target.windows-x86_64]
 isa = "x86_64"
@@ -23,11 +24,16 @@ abi = "sysv64"
 opt = 0
 debug = true
 simd = "scalarize"
+vectorize = false
+float_reassoc = false
+default = true
 
 [profile.release]
 opt = 2
 debug = false
 simd = "scalarize"
+vectorize = true
+float_reassoc = false
 
 [artifact.vk]
 kind = "static"
@@ -36,10 +42,11 @@ out = "lib/vk"
 targets = ["*"]
 link = []
 need = []
+default = true
 
 # the worked example, and the only artifact that links a real loader. two
-# artifacts are declared, so a bare `mach build .` asks which one -- build the
-# library with `--lib vk` and the example with `--bin example`.
+# artifacts are declared and the library is the default, so build the example
+# with `--bin example`.
 [artifact.example]
 kind = "bin"
 entry = "bin/example.mach"
@@ -78,6 +85,6 @@ isa     = "*"
 abi     = "*"
 export  = false
 
-[dep.mach-std]
+[dep.std]
 git = "https://github.com/briar-systems/mach-std"
-ref = "branch/main"
+ref = "tag/v3.2.0"

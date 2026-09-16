@@ -19,6 +19,7 @@
 import difflib
 import os
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -53,7 +54,7 @@ SRC = os.path.join(ROOT, "src")
 # mach reserved keywords (grammar.md); a generated identifier matching one
 # exactly is renamed with a trailing underscore.
 KEYWORDS = set(
-    "asm brk cnt def ext fin for fun fwd if nil or pub rec ret test uni use val var".split()
+    "asm brk cnt def each error ext fin for fun fwd if in nil or pub rec ret sel tag test uni use val var".split()
 )
 
 # Vulkan / C base scalar leaves -> mach scalar type. handles, enums, bitmasks,
@@ -678,8 +679,7 @@ HEADER_VK = """\
 def field_block(fields):
     if not fields:
         return []
-    width = max(len(n) for n, _ in fields)
-    return ["    {}: {};".format(n.ljust(width), ty) for n, ty in fields]
+    return ["    {}: {};".format(n, ty) for n, ty in fields]
 
 
 def gen_types(model):
@@ -784,11 +784,10 @@ def gen_c(model):
         if handle:
             comps.append((handle, "the created {} to resolve against".format(handle)))
         comps.append(("ret", "the number of {} commands resolved; unresolved pointers stay nil".format(tier)))
-        cw = max(len(cid) for cid, _ in comps)
         out.append("# {}".format(doc))
         out.append("# ---")
         for cid, cdesc in comps:
-            out.append("# {}: {}".format(cid.ljust(cw), cdesc))
+            out.append("# {}: {}".format(cid, cdesc))
         if handle:
             out.append("pub fun {}({}: {}, {}: ptr) i64 {{".format(fname, loader, loader_ty, handle))
         else:
@@ -899,14 +898,25 @@ def gen_vk(model):
     return "\n".join(out) + "\n"
 
 
+def canonical(name, text):
+    # mach fmt owns the layout, so the committed sources are what it would write
+    mach = os.environ.get("MACH", "mach")
+    result = subprocess.run([mach, "fmt", "-"], input=text, capture_output=True, text=True)
+    if result.returncode != 0:
+        sys.stderr.write("mach fmt rejected generated {}:\n{}".format(name, result.stdout + result.stderr))
+        sys.exit(1)
+    return result.stdout
+
+
 def render(model):
-    return {
+    files = {
         "types.mach": gen_types(model),
         "enums.mach": gen_enums(model),
         "structs.mach": gen_structs(model),
         "c.mach": gen_c(model),
         "vk.mach": gen_vk(model),
     }
+    return {name: canonical(name, text) for name, text in files.items()}
 
 
 def main():
