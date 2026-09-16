@@ -101,6 +101,9 @@ plus the loader chain.
      instance trampoline.
 4. **Emit deterministically.** Stable ordering, C names and C-faithful types, so
    `gen.py check` produces a byte-identical diff against the committed sources.
+   Every file passes through `mach fmt -` before it is written or compared, so
+   the formatter, not the generator, owns the layout, and a formatted tree never
+   drifts from a fresh generation.
 
 ## Usage
 
@@ -110,4 +113,5 @@ tools/gen.py check      diff a fresh generation against the committed sources;
                         nonzero exit on drift (CI's generation-drift job)
 ```
 
-Python standard library only, matching mach-gl.
+Python standard library only, plus the `mach` compiler for its formatter. It
+runs the `mach` on `PATH`, or the one the `MACH` environment variable names.
