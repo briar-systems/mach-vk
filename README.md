@@ -37,10 +37,13 @@ consumers. The consumer owns the loader — dynamic-linking `libvulkan`, `dlopen
 or a windowing library's proc-address hook are all equally valid.
 
 ```toml
-[deps.mach-vk]
+[dep.vk]
 git = "https://github.com/briar-systems/mach-vk"
 ref = "branch/main"
 ```
+
+The dependency key is the project id, so add it with
+`mach dep add . vk --git https://github.com/briar-systems/mach-vk`.
 
 ## Goals
 
@@ -103,13 +106,15 @@ src/
 tools/
   gen.py        registry generator; emits all generated sources
   vk.xml        pinned Khronos registry snapshot
-test/
-  smoke/        a separate consuming project that links a real Vulkan loader and
-                drives the binding against a live ICD; see Tests
+  bin/
+    example.mach  the worked example: links a real Vulkan loader and drives the
+                  binding against a live ICD; see Tests
 ```
 
-`[project].module = "vk.mach"` makes a bare `use vk;` resolve to the surface, and
-the project is a `[lib.vk]` artifact entered through it. The surface carries
+The `[artifact.vk]` static library is marked `default = true` and entered
+through `vk.mach`, so a consumer's bare `use vk;` binds the surface. Inside this
+project a bare `use vk;` binds the selected artifact's entry instead, which is
+why the example imports `use vk: vk.vk;`. The surface carries
 `use std.runtime;` so a library `mach test` links a runnable binary.
 
 See [`tools/README.md`](tools/README.md) for the generation approach and the
@@ -137,7 +142,7 @@ across `linux`, `darwin`, and `windows`; `mach.toml` declares the three
 `x86_64` triples that are exercised today, and the bindings compile for any
 target the toolchain supports.
 
-Loader linking is CI-verified on all three declared triples: the smoke test
+Loader linking is CI-verified on all three declared triples: the example
 links and runs against the system loader on linux (full session via the
 lavapipe software ICD), windows (link-only; headless runners have the loader
 but no ICD), and macOS (against Homebrew's MoltenVK, full session when the
@@ -152,15 +157,13 @@ report zero; a counting loader must resolve every command) and call through the
 table into a Mach-implemented fake, which pins the loaded-pointer call ABI
 without a Vulkan implementation present.
 
-Paths that need a live loader and a real ICD live in `test/smoke/`, which is a
-**separate project** that consumes mach-vk by path rather than a target inside
-this manifest. That separation is load-bearing, not tidiness: `mach test` links
-the union of every artifact's link entries across a project, so a single
-Vulkan-linking artifact in this manifest would pull `libvulkan` into the
-binding's own test binary and break the guarantee above. Keeping the smoke test
-one project out is what lets `mach test .` here stay link-free.
+Paths that need a live loader and a real ICD live in the `example` artifact.
+`mach test .` compiles the test corpus and links no loader, so the example
+living in this manifest costs the library nothing. Build and run it with
+`mach run . --bin example`, or set `VK_EXAMPLE_LINK_ONLY=1` to stop after the
+loader and the `vkGetInstanceProcAddr` chain on a machine with no ICD.
 
-`test/smoke` doubles as the reference bootstrap: it shows the whole chain a
-consumer owns — declaring `vkGetInstanceProcAddr`, linking the platform loader
-through its own `[link.vulkan-*]` entries, and driving `load_global` →
-`load_instance` → `load_device` to a live device and queue.
+The example doubles as the reference bootstrap. It shows the whole chain a
+consumer owns: declaring `vkGetInstanceProcAddr`, linking the platform loader
+through `[link.vulkan-*]` entries, and driving `load_global`, `load_instance`
+and `load_device` to a live device and queue.

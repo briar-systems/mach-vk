@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Migrated to Mach 5.0 and std 2.1.0. The manifest states complete profiles and default markers, std is pinned by its `dep/std` gitlink in place of `mach.lock`, and CI pulls with `mach dep pull .`. Consumers declare the dependency as `[dep.vk]`.
+- The generator reserves the Mach 5 keywords (`sel`, `tag`, `each`, `error`, `in`). No generated identifier changed.
+- The example reads `VK_EXAMPLE_LINK_ONLY` through the std 2.1 `res[opt[usize], EnvError]` surface.
+
 ## [0.2.0] - 2026-08-08
 
 ### Added
