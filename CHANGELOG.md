@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Releases publish through the family's shared release workflow. A pushed `v*` tag runs the version and changelog checks, the full CI tier, and then publishes the GitHub release with the version's changelog section as notes.
+
 ## [0.3.1] - 2026-09-16
 
 ### Changed

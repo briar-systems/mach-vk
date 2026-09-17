@@ -2,11 +2,16 @@ name: CI
 
 # the family's tiered pipeline (briar-systems/.github mach-lib.yml). a pull
 # request into dev runs the linux leg and the generation drift check, a pull
-# request into main runs every leg. the loader checks live in .github/ci.
-# nothing runs on push.
+# request into main runs every leg, and a release calls this workflow with
+# heavy=all. the loader checks live in .github/ci. nothing runs on push.
 
 on:
   pull_request:
+  workflow_call:
+    inputs:
+      heavy:
+        type: string
+        default: none
   workflow_dispatch:
     inputs:
       heavy:
