@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-16
+
+### Changed
+- Moved std to 4.0.0. No source change was needed, since the bindings and the example use none of the names std 4 removed or moved. Building with std 4.0.0 needs mach 5.2.0 or later.
+
+### Fixed
+- The README states the bare `use vk;` rule as mach defines it, the entry shared by the default library artifacts, and links mach's description.
+
 ## [0.3.0] - 2026-09-16
 
 ### Changed
