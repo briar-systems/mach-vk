@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The README states the bare `use vk;` rule as mach defines it, the entry shared by the default library artifacts, and links mach's description.
+
 ## [0.3.0] - 2026-09-16
 
 ### Changed

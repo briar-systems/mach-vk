@@ -111,10 +111,12 @@ tools/
                   binding against a live ICD; see Tests
 ```
 
-The `[artifact.vk]` static library is marked `default = true` and entered
-through `vk.mach`, so a consumer's bare `use vk;` binds the surface. Inside this
-project a bare `use vk;` binds the selected artifact's entry instead, which is
-why the example imports `use vk: vk.vk;`. The surface carries
+A bare `use vk;` binds the project's public module, the entry shared by its
+library artifacts marked `default = true`. `[artifact.vk]` is the only one and is
+entered through `vk.mach`, so a consumer's bare `use vk;` binds `vk.vk`, the
+surface. Inside this project a bare `use vk;` binds the selected artifact's entry
+instead, which is why the example imports the full path, `use vk: vk.vk;`. See
+[bare project-id imports](https://github.com/briar-systems/mach/blob/main/doc/language/modules.md#bare-project-id-imports). The surface carries
 `use std.runtime;` so a library `mach test` links a runnable binary.
 
 See [`tools/README.md`](tools/README.md) for the generation approach and the
