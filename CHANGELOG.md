@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Release runs are serialized per tag, as the shared release workflow now requires. A duplicate tag-push delivery waits and then ends with nothing to do.
 - The manifest declares the compiler range `mach = "^5.3"`, so mach 5.3 and later build it without a warning.
 - The copyright belongs to Briar Systems LLC.
 - Releases publish through the family's shared release workflow. A pushed `v*` tag runs the version and changelog checks, the full CI tier, and then publishes the GitHub release with the version's changelog section as notes.
