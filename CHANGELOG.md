@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Moved std to 5.7.1. A root project's std override replaces every dependency's std, so a consumer on std 5 could not use this library while it pinned std 4. No source change was needed: the bindings and the example touch none of the clock, cancellation, timer or `buffers.Source` surface std 5 reshaped. `[project].mach` rises to `^5.5.2`, the floor std 5.7.1 itself requires, and the code was verified on exactly mach 5.5.2.
 - Release runs are serialized per tag, as the shared release workflow now requires. A duplicate tag-push delivery waits and then ends with nothing to do.
 - The manifest declares the compiler range `mach = "^5.3"`, so mach 5.3 and later build it without a warning.
 - The copyright belongs to Briar Systems LLC.
