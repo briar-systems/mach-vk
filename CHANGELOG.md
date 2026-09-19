@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-19
+
 ### Changed
 - Moved std to 6.0.0, declared as the range `^6.0` with the `dep/std` gitlink (980386e) as the pin. std 6 is a major, and a root project's std override replaces every dependency's std, so a consumer on std 6 could not use this library while it declared std 5. No source change was needed: the bindings and the example use only `std.runtime`, `std.print`, `std.process.env` and `std.types`, none of the sort, heap, map, set, constant-time or buffers surface std 6 reshaped. `[project].mach` rises to `^5.9`, the family seed, and the code was verified on mach 5.9.0.
 
