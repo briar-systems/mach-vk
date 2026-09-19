@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-19
+
+### Changed
+- Moved std to 5.7.1, declared as the range `^5.7.1` with the `dep/std` gitlink as the pin. An exact tag below a root's range conflicts on every std minor, and a range resolves alongside a root written by `mach init`. A root project's std override replaces every dependency's std, so a consumer on std 5 could not use this library while it pinned std 4. No source change was needed: the bindings and the example touch none of the clock, cancellation, timer or `buffers.Source` surface std 5 reshaped. `[project].mach` rises to `^5.5.2`, the floor std 5.7.1 itself requires, and the code was verified on exactly mach 5.5.2.
+- Release runs are serialized per tag, as the shared release workflow now requires. A duplicate tag-push delivery waits and then ends with nothing to do.
+- The manifest declares a compiler range, so mach 5.3 and later build it without a warning. It is `^5.5.2` in this release.
+- The copyright belongs to Briar Systems LLC.
+- Releases publish through the family's shared release workflow. A pushed `v*` tag runs the version and changelog checks, the full CI tier, and then publishes the GitHub release with the version's changelog section as notes.
+
 ## [0.3.1] - 2026-09-16
 
 ### Changed
