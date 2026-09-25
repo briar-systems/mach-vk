@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-25
+
 ### Changed
 - Breaking: std is declared as `^8.1` with the `dep/std` gitlink at v8.1.0 (64ebcff), and `[project].mach` rises to `^5.12`, which std 8 requires. Resolution is flat, so a consumer of vk must move to mach-std 8 and mach 5.12 with it. CI seeds mach v5.12.0 on every job until the family pin moves. No source changed: the bindings and the example use none of the `io.runtime`, allocator, `data.toml` or `buffers.SecretSource` surface std 7 and 8 reshaped. std 8.1 is the floor because 7.5.0 through 8.0.0 overwrite the thread pointer glibc set, so the example, which links the system Vulkan loader, segfaults on linux under those versions (mach-std#915). Under mach 5.12 `mach test .` collects the same 7 tests as before, since the library reaches every module that declares one (#48).
 
