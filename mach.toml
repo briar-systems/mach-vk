@@ -38,7 +38,7 @@ float_reassoc = false
 
 [artifact.vk]
 kind = "static"
-entry = "vk.mach"
+entry = "lib/vk.mach"
 out = "lib/vk"
 targets = ["*"]
 link = []

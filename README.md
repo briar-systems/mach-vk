@@ -108,21 +108,23 @@ src/
   c.mach        raw command table + loaders (generated): one pub var function
                 pointer per command, plus load_global / load_instance /
                 load_device
-  vk.mach       library surface (generated): re-exports every symbol under vk.*,
-                keeping vk.c reachable for C names
-tools/
-  gen.py        registry generator; emits all generated sources
-  vk.xml        pinned Khronos registry snapshot
+  lib/
+    vk.mach     library surface and artifact entry (generated): re-exports
+                every symbol under vk.*, keeping vk.c reachable for C names
   bin/
     example.mach  the worked example: links a real Vulkan loader and drives the
                   binding against a live ICD; see Tests
+tools/
+  gen.py        registry generator; emits all generated sources
+  vk.xml        pinned Khronos registry snapshot
 ```
 
 A bare `use vk;` binds the project's public module, the entry shared by its
 library artifacts marked `default = true`. `[artifact.vk]` is the only one and is
-entered through `vk.mach`, so a consumer's bare `use vk;` binds `vk.vk`, the
-surface. Inside this project a bare `use vk;` binds the selected artifact's entry
-instead, which is why the example imports the full path, `use vk: vk.vk;`. See
+entered through `lib/vk.mach`, so a consumer's bare `use vk;` binds
+`vk.lib.vk`, the surface. Inside this project a bare `use vk;` binds the selected
+artifact's entry instead, which is why the example imports the full path,
+`use vk.lib.vk;`. See
 [bare project-id imports](https://github.com/briar-systems/mach/blob/main/doc/language/modules.md#bare-project-id-imports). The surface carries
 `use std.runtime;` so a library `mach test` links a runnable binary.
 
