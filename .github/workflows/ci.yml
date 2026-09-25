@@ -30,7 +30,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+      # vk needs mach 5.12, so it seeds v5.12.0 until the family pin moves (briar-systems/.github#103)
       - uses: briar-systems/.github/.github/actions/seed-mach@main
+        with:
+          tag: v5.12.0
       - name: check generated sources against the registry
         run: python3 tools/gen.py check
 
@@ -41,6 +44,8 @@ jobs:
     uses: briar-systems/.github/.github/workflows/mach-lib.yml@main
     with:
       heavy: ${{ inputs.heavy }}
+      # vk needs mach 5.12, so it seeds v5.12.0 until the family pin moves (briar-systems/.github#103)
+      mach-version: v5.12.0
       # --all-targets would link the example too, and darwin's loader is probed
       # on disk, so verify.sh builds the library alone for each target
       all-targets: false
