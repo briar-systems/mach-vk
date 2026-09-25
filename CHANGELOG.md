@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The library surface moves from `src/vk.mach` to `src/lib/vk.mach`, following the family layout for artifact entries (#53). A bare `use vk;` is unaffected, since it binds the default artifact's entry wherever that lives, and every other module path (`vk.c`, `vk.types`, `vk.enums`, `vk.structs`) is unchanged. The entry module's own full path becomes `vk.lib.vk` in place of `vk.vk`. `src/lib/` is the artifact that builds a compiled library to ship, not the surface a direct dependency names, so a dependency imports the bare `use vk;`. `tools/gen.py` writes the surface to `src/lib/vk.mach`, and `mach test . --list` collects the same 7 tests as before.
+- The worked example leaves the library for `demo/example/`, its own project with its own std pin and a path dependency on the repository root, so the library declares no binary and no loader link (#53). `[artifact.example]` and the `[link.vulkan-*]` entries move to the example's manifest, and it imports the bare `use vk;` like any consumer. CI builds it as a subproject on every leg and runs it against each leg's loader, and the library's release build for every target is back in the standard all-targets phase.
 
 ### Fixed
 - The README's dependency stanza selects releases with `version = "^0.6.0"`, as `mach dep add` writes it, in place of following `branch/main`. It shows the `mach dep add` command first, so the stanza stays what a consumer actually gets (#47).

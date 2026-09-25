@@ -111,20 +111,18 @@ src/
   lib/
     vk.mach     library surface and artifact entry (generated): re-exports
                 every symbol under vk.*, keeping vk.c reachable for C names
-  bin/
-    example.mach  the worked example: links a real Vulkan loader and drives the
-                  binding against a live ICD; see Tests
 tools/
   gen.py        registry generator; emits all generated sources
   vk.xml        pinned Khronos registry snapshot
+demo/
+  example/      the worked example, its own project: links a real Vulkan
+                loader and drives the binding against a live ICD; see Tests
 ```
 
 A bare `use vk;` binds the project's public module, the entry shared by its
 library artifacts marked `default = true`. `[artifact.vk]` is the only one and is
 entered through `lib/vk.mach`, so a consumer's bare `use vk;` binds
-`vk.lib.vk`, the surface. Inside this project a bare `use vk;` binds the selected
-artifact's entry instead, which is why the example imports the full path,
-`use vk.lib.vk;`. See
+`vk.lib.vk`, the surface. The example is such a consumer. See
 [bare project-id imports](https://github.com/briar-systems/mach/blob/main/doc/language/modules.md#bare-project-id-imports). The surface carries
 `use std.runtime;` so a library `mach test` links a runnable binary.
 
@@ -168,13 +166,23 @@ report zero; a counting loader must resolve every command) and call through the
 table into a Mach-implemented fake, which pins the loaded-pointer call ABI
 without a Vulkan implementation present.
 
-Paths that need a live loader and a real ICD live in the `example` artifact.
-`mach test .` compiles the test corpus and links no loader, so the example
-living in this manifest costs the library nothing. Build and run it with
-`mach run . --bin example`, or set `VK_EXAMPLE_LINK_ONLY=1` to stop after the
-loader and the `vkGetInstanceProcAddr` chain on a machine with no ICD.
+Paths that need a live loader and a real ICD live in the example, a separate
+project under `demo/example/`. The library declares no binary and links no
+loader, and the example consumes it the way any project would: `[dep.vk]` is a
+path dependency on this checkout, `../..`, beside its own pin of std. Build and
+run it from the repository root:
+
+```sh
+mach dep pull demo/example
+mach build demo/example
+mach run demo/example
+```
+
+A path dependency is a copy, so run `mach dep pull demo/example` again after
+changing the bindings. Set `VK_EXAMPLE_LINK_ONLY=1` to stop after the loader
+and the `vkGetInstanceProcAddr` chain on a machine with no ICD.
 
 The example doubles as the reference bootstrap. It shows the whole chain a
 consumer owns: declaring `vkGetInstanceProcAddr`, linking the platform loader
-through `[link.vulkan-*]` entries, and driving `load_global`, `load_instance`
+through `[link.vulkan-*]` entries in its own manifest, and driving `load_global`, `load_instance`
 and `load_device` to a live device and queue.

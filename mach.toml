@@ -45,47 +45,6 @@ link = []
 need = []
 default = true
 
-# the worked example, and the only artifact that links a real loader. two
-# artifacts are declared and the library is the default, so build the example
-# with `--bin example`.
-[artifact.example]
-kind = "bin"
-entry = "bin/example.mach"
-out = "bin/example"
-targets = ["*"]
-link = ["vulkan-linux", "vulkan-windows", "vulkan-darwin"]
-need = []
-
-# the loader is named per platform and resolved by the system at run time.
-# linking records the dependency by name with no on-disk probe, so no SDK is
-# needed to build -- only the loader itself, at run time.
-[link.vulkan-linux]
-source  = "system"
-name    = "vulkan"
-library = "vulkan"
-os      = "linux"
-isa     = "*"
-abi     = "*"
-export  = false
-
-[link.vulkan-windows]
-source  = "system"
-name    = "vulkan-1.dll"
-library = "vulkan"
-os      = "windows"
-isa     = "*"
-abi     = "*"
-export  = false
-
-[link.vulkan-darwin]
-source  = "system"
-name    = "MoltenVK"
-library = "vulkan"
-os      = "darwin"
-isa     = "*"
-abi     = "*"
-export  = false
-
 [dep.std]
 git = "https://github.com/briar-systems/mach-std"
 version = "^8.1"
