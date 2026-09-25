@@ -36,14 +36,21 @@ no system link requirement: `mach-vk` declares no `libs` and forces none on
 consumers. The consumer owns the loader — dynamic-linking `libvulkan`, `dlopen`,
 or a windowing library's proc-address hook are all equally valid.
 
+Add it with `mach dep add`, which declares the dependency at a caret range over
+the newest compatible release and realizes it. The dependency key is the
+project id:
+
+```sh
+mach dep add . vk --git https://github.com/briar-systems/mach-vk
+```
+
+That writes this stanza to `mach.toml`:
+
 ```toml
 [dep.vk]
 git = "https://github.com/briar-systems/mach-vk"
-ref = "branch/main"
+version = "^0.6.0"
 ```
-
-The dependency key is the project id, so add it with
-`mach dep add . vk --git https://github.com/briar-systems/mach-vk`.
 
 ## Goals
 

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The README's dependency stanza selects releases with `version = "^0.6.0"`, as `mach dep add` writes it, in place of following `branch/main`. It shows the `mach dep add` command first, so the stanza stays what a consumer actually gets (#47).
+
 ## [0.6.0] - 2026-09-25
 
 ### Changed
