@@ -15,7 +15,7 @@ use std.types.option.opt;
 use std.types.result.res;
 use std.types.size.usize;
 use std.types.string.str_equals;
-use vk.vk;
+use vk;
 
 # the bootstrap entry point every other Vulkan command is resolved through.
 # #[library] attribution is required on two-level-namespace targets (PE,

@@ -37,18 +37,19 @@ jobs:
       - name: check generated sources against the registry
         run: python3 tools/gen.py check
 
-  # `mach test .` compiles the corpus and links no loader. the linux leg builds
-  # the library for every target and drives lavapipe, and the native legs drive
-  # their platform loaders.
+  # `mach test .` compiles the corpus and links no loader. the primary leg builds
+  # the library for every target, the linux leg drives lavapipe, and the native
+  # legs drive their platform loaders.
   lib:
     uses: briar-systems/.github/.github/workflows/mach-lib.yml@main
     with:
       heavy: ${{ inputs.heavy }}
       # vk needs mach 5.12, so it seeds v5.12.0 until the family pin moves (briar-systems/.github#103)
       mach-version: v5.12.0
-      # --all-targets would link the example too, and darwin's loader is probed
-      # on disk, so verify.sh builds the library alone for each target
-      all-targets: false
+      # the example is its own project, so every profile builds it on every leg
+      # and verify.sh runs it against the leg's loader
+      subprojects: >-
+        [{"path": "demo/example", "build": true, "test": false}]
       legs: >-
         [{"name": "x86_64-linux", "runs-on": "ubuntu-latest",
           "apt": ["libvulkan-dev", "mesa-vulkan-drivers", "vulkan-tools"]},

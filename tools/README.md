@@ -44,7 +44,9 @@ src/
   c.mach        raw command table + loaders (generated): one pub var function
                 pointer per command, plus load_global / load_instance /
                 load_device walking the proc-addr chains
-  vk.mach       library surface (generated): re-exports every symbol under vk.*
+  lib/
+    vk.mach     library surface and artifact entry (generated): re-exports
+                every symbol under vk.*
 ```
 
 The layer boundaries follow the C type graph's actual dependency order:
@@ -108,7 +110,8 @@ plus the loader chain.
 ## Usage
 
 ```
-tools/gen.py            regenerate the src/*.mach declaration layers
+tools/gen.py            regenerate the src/*.mach declaration layers and
+                        the src/lib/vk.mach surface
 tools/gen.py check      diff a fresh generation against the committed sources;
                         nonzero exit on drift (CI's generation-drift job)
 ```

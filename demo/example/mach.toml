@@ -1,0 +1,84 @@
+[project]
+id = "example"
+version = "0.1.0"
+mach = "^5.12"
+src = "src"
+out = "out/{target.name}/{profile.name}"
+
+[target.linux-x86_64]
+isa = "x86_64"
+os  = "linux"
+abi = "sysv64"
+default = true
+
+[target.windows-x86_64]
+isa = "x86_64"
+os  = "windows"
+abi = "win64"
+
+[target.darwin-x86_64]
+isa = "x86_64"
+os  = "darwin"
+abi = "sysv64"
+
+[profile.debug]
+opt = 0
+debug = true
+simd = "scalarize"
+vectorize = false
+float_reassoc = false
+default = true
+
+[profile.release]
+opt = 2
+debug = false
+simd = "scalarize"
+vectorize = true
+float_reassoc = false
+
+# the worked example, and the only thing here that links a real loader
+[artifact.example]
+kind = "bin"
+entry = "bin/main.mach"
+out = "bin/example"
+targets = ["*"]
+link = ["vulkan-linux", "vulkan-windows", "vulkan-darwin"]
+need = []
+
+# the loader is named per platform and resolved by the system at run time.
+# linking records the dependency by name with no on-disk probe, so no SDK is
+# needed to build -- only the loader itself, at run time.
+[link.vulkan-linux]
+source  = "system"
+name    = "vulkan"
+library = "vulkan"
+os      = "linux"
+isa     = "*"
+abi     = "*"
+export  = false
+
+[link.vulkan-windows]
+source  = "system"
+name    = "vulkan-1.dll"
+library = "vulkan"
+os      = "windows"
+isa     = "*"
+abi     = "*"
+export  = false
+
+[link.vulkan-darwin]
+source  = "system"
+name    = "MoltenVK"
+library = "vulkan"
+os      = "darwin"
+isa     = "*"
+abi     = "*"
+export  = false
+
+[dep.std]
+git = "https://github.com/briar-systems/mach-std"
+ref = "tag/v8.1.0"
+
+# the bindings from this checkout, so the example always drives the tree it ships with
+[dep.vk]
+path = "../.."

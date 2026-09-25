@@ -7,7 +7,8 @@
 #   https://raw.githubusercontent.com/KhronosGroup/Vulkan-Docs/<commit>/xml/vk.xml
 #
 # usage:
-#   tools/gen.py            regenerate the src/*.mach declaration layers
+#   tools/gen.py            regenerate the src/*.mach declaration layers and
+#                           the src/lib/vk.mach surface
 #   tools/gen.py check      regenerate to memory and diff against the committed
 #                           sources; exit nonzero (and print a unified diff) on
 #                           any drift; this is what CI's generation-drift job runs
@@ -914,7 +915,7 @@ def render(model):
         "enums.mach": gen_enums(model),
         "structs.mach": gen_structs(model),
         "c.mach": gen_c(model),
-        "vk.mach": gen_vk(model),
+        "lib/vk.mach": gen_vk(model),
     }
     return {name: canonical(name, text) for name, text in files.items()}
 
@@ -951,9 +952,10 @@ def main():
             sys.exit(1)
         return
 
-    os.makedirs(SRC, exist_ok=True)
     for name, content in files.items():
-        with open(os.path.join(SRC, name), "w") as f:
+        path = os.path.join(SRC, name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
             f.write(content)
     sys.stderr.write(
         "generated {} handles, {} fn typedefs, {} records, {} enums, {} commands\n".format(
