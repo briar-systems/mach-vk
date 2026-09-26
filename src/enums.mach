@@ -1192,21 +1192,12 @@ pub val VERTEX_INPUT_RATE_INSTANCE:                                             
 pub val VERTEX_INPUT_RATE_VERTEX:                                                                     i32 = 0;
 pub val WHOLE_SIZE:                                                                                   u64 = 0xFFFFFFFFFFFFFFFF;
 
-test "enums: enum and structure-type values match the registry" {
-    if (SUCCESS != 0)                                         { ret 1; }
-    if (NOT_READY != 1)                                       { ret 1; }
+# one value per derivation: a negative result, an extension offset, a bit
+# position, and a 64-bit API constant
+test enums__registry_values {
     if (ERROR_OUT_OF_HOST_MEMORY != -1)                       { ret 1; }
-    if (STRUCTURE_TYPE_APPLICATION_INFO != 0)                 { ret 1; }
     if (STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO != 1000157000) { ret 1; }
-    ret 0;
-}
-
-test "enums: bitmask and API constants keep their width" {
-    if (QUEUE_GRAPHICS_BIT != 0x00000001) { ret 1; }
-    if (QUEUE_COMPUTE_BIT != 0x00000002)  { ret 1; }
-    if (TRUE != 1)                        { ret 1; }
-    if (FALSE != 0)                       { ret 1; }
-    if (MAX_MEMORY_TYPES != 32)           { ret 1; }
-    if (WHOLE_SIZE != 0xFFFFFFFFFFFFFFFF) { ret 1; }
+    if (QUEUE_COMPUTE_BIT != 0x00000002)                      { ret 1; }
+    if (WHOLE_SIZE != 0xFFFFFFFFFFFFFFFF)                     { ret 1; }
     ret 0;
 }

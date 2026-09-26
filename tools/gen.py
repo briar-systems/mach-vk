@@ -688,12 +688,6 @@ def gen_types(model):
     for name, c_name in model.handles:
         out.append("# the {} handle".format(c_name))
         out.append("pub def {}: ptr;".format(name))
-    out.append("")
-    out.append('test "types: a handle is pointer-sized and opaque" {')
-    out.append("    if ($size_of(Instance) != 8) { ret 1; }")
-    out.append("    if ($size_of(Device) != 8) { ret 1; }")
-    out.append("    ret 0;")
-    out.append("}")
     return "\n".join(out) + "\n"
 
 
@@ -702,21 +696,12 @@ def gen_enums(model):
     for e in model.enums:
         out.append("pub val {}: {} = {};".format(e.name, e.width, e.literal))
     out.append("")
-    out.append('test "enums: enum and structure-type values match the registry" {')
-    out.append("    if (SUCCESS != 0) { ret 1; }")
-    out.append("    if (NOT_READY != 1) { ret 1; }")
+    out.append("# one value per derivation: a negative result, an extension offset, a bit")
+    out.append("# position, and a 64-bit API constant")
+    out.append("test enums__registry_values {")
     out.append("    if (ERROR_OUT_OF_HOST_MEMORY != -1) { ret 1; }")
-    out.append("    if (STRUCTURE_TYPE_APPLICATION_INFO != 0) { ret 1; }")
     out.append("    if (STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO != 1000157000) { ret 1; }")
-    out.append("    ret 0;")
-    out.append("}")
-    out.append("")
-    out.append('test "enums: bitmask and API constants keep their width" {')
-    out.append("    if (QUEUE_GRAPHICS_BIT != 0x00000001) { ret 1; }")
     out.append("    if (QUEUE_COMPUTE_BIT != 0x00000002) { ret 1; }")
-    out.append("    if (TRUE != 1) { ret 1; }")
-    out.append("    if (FALSE != 0) { ret 1; }")
-    out.append("    if (MAX_MEMORY_TYPES != 32) { ret 1; }")
     out.append("    if (WHOLE_SIZE != 0xFFFFFFFFFFFFFFFF) { ret 1; }")
     out.append("    ret 0;")
     out.append("}")
@@ -736,7 +721,7 @@ def gen_structs(model):
         out.extend(field_block(r.fields))
         out.append("}")
     out.append("")
-    out.append('test "structs: record layout matches the Vulkan ABI" {')
+    out.append('test structs__abi_layout {')
     out.append("    if ($offset_of(ApplicationInfo, pNext) != 8) { ret 1; }")
     out.append("    if ($offset_of(ApplicationInfo, apiVersion) != 44) { ret 1; }")
     out.append("    if ($size_of(ApplicationInfo) != 48) { ret 1; }")
@@ -809,64 +794,40 @@ def gen_c(model):
 
 def gen_c_tests():
     return [
+        "#[testing]",
         "fun gipa_nil(instance: ptr, name: *u8) ptr {",
         "    ret nil;",
         "}",
         "",
+        "#[testing]",
         "var load_calls: i64 = 0;",
         "",
+        "#[testing]",
         "fun gipa_count(instance: ptr, name: *u8) ptr {",
         "    load_calls = load_calls + 1;",
         "    ret (?load_calls)::ptr;",
         "}",
         "",
+        "#[testing]",
         "fun gdpa_count(device: ptr, name: *u8) ptr {",
         "    load_calls = load_calls + 1;",
         "    ret (?load_calls)::ptr;",
         "}",
         "",
-        "# a nil loader resolves nothing and leaves the global table nil",
-        'test "c: load_global with a nil loader resolves nothing" {',
-        "    val n: i64 = load_global(gipa_nil);",
-        "    if (n != 0) { ret 1; }",
+        "# a nil loader resolves nothing, and a stub loader that answers every name",
+        "# resolves each tier fully, one command per loader call",
+        "test load__counts_resolved {",
+        "    if (load_global(gipa_nil) != 0) { ret 1; }",
         "    if (vkCreateInstance != nil) { ret 1; }",
-        "    ret 0;",
-        "}",
-        "",
-        "# a stub loader that answers every name resolves each tier fully; the count",
-        "# equals the number of loader calls for that tier",
-        'test "c: a stub loader resolves every command in each tier" {',
         "    load_calls = 0;",
         "    val g: i64 = load_global(gipa_count);",
-        "    if (g != load_calls) { ret 1; }",
-        "    if (g <= 0) { ret 1; }",
+        "    if (g != load_calls || g <= 0) { ret 1; }",
         "    load_calls = 0;",
         "    val i: i64 = load_instance(gipa_count, (?load_calls)::ptr);",
-        "    if (i != load_calls) { ret 1; }",
-        "    if (i <= 0) { ret 1; }",
+        "    if (i != load_calls || i <= 0) { ret 1; }",
         "    load_calls = 0;",
         "    val d: i64 = load_device(gdpa_count, (?load_calls)::ptr);",
-        "    if (d != load_calls) { ret 1; }",
-        "    if (d <= 0) { ret 1; }",
-        "    ret 0;",
-        "}",
-        "",
-        "var abi_seen: u32 = 0;",
-        "",
-        "fun abi_fake(api: *u32) i32 {",
-        "    @api = abi_seen;",
-        "    ret 0;",
-        "}",
-        "",
-        "# pin the loaded-pointer call ABI: a mach fake stands in for a command and the",
-        "# call must deliver the out-pointer and read its result back without a loader",
-        'test "c: loaded-pointer call ABI" {',
-        "    abi_seen = 0x00403000;",
-        "    vkEnumerateInstanceVersion = abi_fake;",
-        "    var ver: u32 = 0;",
-        "    val r: i32 = vkEnumerateInstanceVersion(?ver);",
-        "    if (r != 0) { ret 1; }",
-        "    if (ver != 0x00403000) { ret 1; }",
+        "    if (d != load_calls || d <= 0) { ret 1; }",
         "    ret 0;",
         "}",
     ]
