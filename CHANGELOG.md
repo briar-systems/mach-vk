@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-26
+
+### Changed
+- **Breaking: builds against std 9.0.0 and requires mach 6** (#58). `[dep.std]` moves from `^8.0` to `^9.0`, realized to v9.0.0 by the committed `dep/std` gitlink, and `[project].mach` rises from `^5.12` to `^6`, which std 9 requires. Resolution is flat, so a consumer of mach-vk must move to std 9 and mach 6 with it. No binding changed. The example in `demo/example/` states `mach = "^6"` and pins std at `tag/v9.0.0`.
+- test: the tests `tools/gen.py` emits are named with identifiers (`test subject__case`), as mach 6 requires, and pruned to the mach 6 test policy, from 7 to 3 (#58). The handle-size test (a `ptr` alias) and the loaded-pointer call test (the compiler's indirect call) are dropped, the two enum tests fold into `enums__registry_values` with one value per derivation, and the nil and stub loader tests fold into `load__counts_resolved`, with the loader fixtures `#[testing]`. `src/` is regenerated.
+- ci: the generate job and the lib legs seed mach v6.0.0 until the family pin moves (briar-systems/.github#103) (#58).
+- docs: the README's dependency stanza names `version = "^0.7.0"`.
+
 ## [0.6.1] - 2026-09-25
 
 ### Changed

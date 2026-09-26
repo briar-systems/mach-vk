@@ -71,9 +71,3 @@ pub def SurfaceKHR: ptr;
 pub def SwapchainKHR: ptr;
 # the VkDebugUtilsMessengerEXT handle
 pub def DebugUtilsMessengerEXT: ptr;
-
-test "types: a handle is pointer-sized and opaque" {
-    if ($size_of(Instance) != 8) { ret 1; }
-    if ($size_of(Device) != 8)   { ret 1; }
-    ret 0;
-}
