@@ -3175,7 +3175,7 @@ pub rec CommandBufferInheritanceRenderingInfo {
     rasterizationSamples:    i32;
 }
 
-test "structs: record layout matches the Vulkan ABI" {
+test structs__abi_layout {
     if ($offset_of(ApplicationInfo, pNext) != 8)       { ret 1; }
     if ($offset_of(ApplicationInfo, apiVersion) != 44) { ret 1; }
     if ($size_of(ApplicationInfo) != 48)               { ret 1; }

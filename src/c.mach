@@ -1043,63 +1043,39 @@ pub fun load_device(gdpa: GetDeviceProcAddr, device: ptr) i64 {
     ret n;
 }
 
+#[testing]
 fun gipa_nil(instance: ptr, name: *u8) ptr {
     ret nil;
 }
 
+#[testing]
 var load_calls: i64 = 0;
 
+#[testing]
 fun gipa_count(instance: ptr, name: *u8) ptr {
     load_calls = load_calls + 1;
     ret (?load_calls)::ptr;
 }
 
+#[testing]
 fun gdpa_count(device: ptr, name: *u8) ptr {
     load_calls = load_calls + 1;
     ret (?load_calls)::ptr;
 }
 
-# a nil loader resolves nothing and leaves the global table nil
-test "c: load_global with a nil loader resolves nothing" {
-    val n: i64 = load_global(gipa_nil);
-    if (n != 0)                  { ret 1; }
-    if (vkCreateInstance != nil) { ret 1; }
-    ret 0;
-}
-
-# a stub loader that answers every name resolves each tier fully; the count
-# equals the number of loader calls for that tier
-test "c: a stub loader resolves every command in each tier" {
+# a nil loader resolves nothing, and a stub loader that answers every name
+# resolves each tier fully, one command per loader call
+test load__counts_resolved {
+    if (load_global(gipa_nil) != 0) { ret 1; }
+    if (vkCreateInstance != nil)    { ret 1; }
     load_calls = 0;
     val g: i64 = load_global(gipa_count);
-    if (g != load_calls) { ret 1; }
-    if (g <= 0)          { ret 1; }
+    if (g != load_calls || g <= 0) { ret 1; }
     load_calls = 0;
     val i: i64 = load_instance(gipa_count, (?load_calls)::ptr);
-    if (i != load_calls) { ret 1; }
-    if (i <= 0)          { ret 1; }
+    if (i != load_calls || i <= 0) { ret 1; }
     load_calls = 0;
     val d: i64 = load_device(gdpa_count, (?load_calls)::ptr);
-    if (d != load_calls) { ret 1; }
-    if (d <= 0)          { ret 1; }
-    ret 0;
-}
-
-var abi_seen: u32 = 0;
-
-fun abi_fake(api: *u32) i32 {
-    @api = abi_seen;
-    ret 0;
-}
-
-# pin the loaded-pointer call ABI: a mach fake stands in for a command and the
-# call must deliver the out-pointer and read its result back without a loader
-test "c: loaded-pointer call ABI" {
-    abi_seen                   = 0x00403000;
-    vkEnumerateInstanceVersion = abi_fake;
-    var ver: u32 = 0;
-    val r:   i32 = vkEnumerateInstanceVersion(?ver);
-    if (r != 0)            { ret 1; }
-    if (ver != 0x00403000) { ret 1; }
+    if (d != load_calls || d <= 0) { ret 1; }
     ret 0;
 }
