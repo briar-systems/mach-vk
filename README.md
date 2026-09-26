@@ -49,7 +49,7 @@ That writes this stanza to `mach.toml`:
 ```toml
 [dep.vk]
 git = "https://github.com/briar-systems/mach-vk"
-version = "^0.6.0"
+version = "^0.7.0"
 ```
 
 ## Goals
