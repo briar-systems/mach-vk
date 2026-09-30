@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-30
+
 ### Added
 - The `linux-aarch64` target (`isa = "aarch64"`, `os = "linux"`, `abi = "aapcs64"`) in the library and the example, built and tested natively on an `ubuntu-24.04-arm` CI leg (#62). The loader link is already ISA-agnostic, so no binding or link entry changed.
 
