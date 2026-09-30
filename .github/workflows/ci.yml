@@ -53,6 +53,9 @@ jobs:
       legs: >-
         [{"name": "x86_64-linux", "runs-on": "ubuntu-latest",
           "apt": ["libvulkan-dev", "mesa-vulkan-drivers", "vulkan-tools"]},
+         {"name": "aarch64-linux", "runs-on": "ubuntu-24.04-arm",
+          "target": "linux-aarch64",
+          "apt": ["libvulkan-dev", "mesa-vulkan-drivers", "vulkan-tools"]},
          {"name": "x86_64-windows", "runs-on": "windows-latest", "tier": "heavy",
           "target": "windows-x86_64", "test": false},
          {"name": "x86_64-darwin", "runs-on": "macos-15-intel", "tier": "heavy",
