@@ -4,7 +4,7 @@
 set -euo pipefail
 
 case "$MACH_CI_LEG" in
-  x86_64-linux)
+  x86_64-linux|aarch64-linux)
     vulkaninfo --summary
     ;;
   x86_64-windows)

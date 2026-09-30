@@ -11,6 +11,11 @@ os  = "linux"
 abi = "sysv64"
 default = true
 
+[target.linux-aarch64]
+isa = "aarch64"
+os  = "linux"
+abi = "aapcs64"
+
 [target.windows-x86_64]
 isa = "x86_64"
 os  = "windows"
