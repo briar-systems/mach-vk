@@ -49,7 +49,7 @@ That writes this stanza to `mach.toml`:
 ```toml
 [dep.vk]
 git = "https://github.com/briar-systems/mach-vk"
-version = "^0.7.0"
+version = "^0.8.0"
 ```
 
 ## Goals
@@ -147,12 +147,12 @@ implementation (`libvulkan.so.1` + an ICD, MoltenVK's `libMoltenVK.dylib`,
 from there.
 
 The Mach compiler currently targets the `x86_64`, `aarch64`, and `riscv64` ISAs
-across `linux`, `darwin`, and `windows`; `mach.toml` declares the three
-`x86_64` triples that are exercised today, and the bindings compile for any
+across `linux`, `darwin`, and `windows`; `mach.toml` declares the
+`x86_64` triples and linux `aarch64`, which are exercised today, and the bindings compile for any
 target the toolchain supports.
 
-Loader linking is CI-verified on all three declared triples: the example
-links and runs against the system loader on linux (full session via the
+Loader linking is CI-verified on every declared triple: the example
+links and runs against the system loader on linux, x86_64 and aarch64 (full session via the
 lavapipe software ICD), windows (link-only; headless runners have the loader
 but no ICD), and macOS (against Homebrew's MoltenVK, full session when the
 runner exposes a GPU, link-only otherwise). Anything beyond those triples is
