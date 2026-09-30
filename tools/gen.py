@@ -11,7 +11,7 @@
 #                           the src/lib/vk.mach surface
 #   tools/gen.py check      regenerate to memory and diff against the committed
 #                           sources; exit nonzero (and print a unified diff) on
-#                           any drift; this is what CI's generation-drift job runs
+#                           any drift
 #
 # stdlib only; output is deterministic so the committed sources and the registry
 # pin cannot drift apart. the core API (Vulkan 1.0..1.3) plus the curated

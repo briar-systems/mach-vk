@@ -3,7 +3,7 @@
 `gen.py` emits the mach-vk declaration layers from the Vulkan registry, the same
 way [mach-gl](https://github.com/briar-systems/mach-gl)'s `tools/gen.py` emits
 its layers from `gl.xml`: a pinned registry snapshot in, deterministic mach
-sources out, with a CI drift check that regenerates and diffs so the pin and the
+sources out, with a drift check (`tools/gen.py check`) that regenerates and diffs so the pin and the
 committed sources cannot fall apart.
 
 The generator covers the **core** Vulkan API (1.0–1.3) plus a curated extension
@@ -113,7 +113,7 @@ plus the loader chain.
 tools/gen.py            regenerate the src/*.mach declaration layers and
                         the src/lib/vk.mach surface
 tools/gen.py check      diff a fresh generation against the committed sources;
-                        nonzero exit on drift (CI's generation-drift job)
+                        nonzero exit on drift
 ```
 
 Python standard library only, plus the `mach` compiler for its formatter. It
