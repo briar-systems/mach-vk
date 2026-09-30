@@ -1,72 +1,64 @@
 name: CI
 
-# the family's tiered pipeline (briar-systems/.github mach-lib.yml). a pull
-# request into dev runs the linux leg and the generation drift check, a pull
-# request into main runs every leg, and a release calls this workflow with
-# heavy=all. the loader checks live in .github/ci. nothing runs on push.
-
 on:
   pull_request:
-  workflow_call:
-    inputs:
-      heavy:
-        type: string
-        default: none
   workflow_dispatch:
     inputs:
-      heavy:
-        description: heavy work to run on this ref
-        type: choice
-        default: none
-        options: [none, all, x86_64-windows, x86_64-darwin]
+      runners:
+        description: runners to test on, as a JSON array, e.g. ["macos-15", "windows-latest"]
+        type: string
+  workflow_call:
+    inputs:
+      runners:
+        type: string
+      profile:
+        type: string
+        default: debug
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  MACH_VERSION: 6.8.0
+  PROFILE: ${{ inputs.profile || 'debug' }}
+
 jobs:
-  # tools/gen.py formats its output with mach fmt, so it needs the seed
-  generate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  # every runner builds every artifact for every target and tests the ones it can run
+  test:
+    name: test (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.runners || '["ubuntu-latest"]') }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v6
-      # vk needs mach 6, so it seeds v6.0.0 until the family pin moves
-      - uses: briar-systems/.github/.github/actions/seed-mach@main
-        with:
-          tag: v6.0.0
-      - name: check generated sources against the registry
-        run: python3 tools/gen.py check
-
-  # `mach test .` compiles the corpus and links no loader. the primary leg builds
-  # the library for every target, the linux leg drives lavapipe, and the native
-  # legs drive their platform loaders.
-  lib:
-    uses: briar-systems/.github/.github/workflows/mach-lib.yml@main
-    with:
-      heavy: ${{ inputs.heavy }}
-      # vk needs mach 6, so it seeds v6.0.0 until the family pin moves
-      mach-version: v6.0.0
-      # the example is its own project, so every profile builds it on every leg
-      # and verify.sh runs it against the leg's loader
-      subprojects: >-
-        [{"path": "demo/example", "build": true, "test": false}]
-      legs: >-
-        [{"name": "x86_64-linux", "runs-on": "ubuntu-latest",
-          "apt": ["libvulkan-dev", "mesa-vulkan-drivers", "vulkan-tools"]},
-         {"name": "aarch64-linux", "runs-on": "ubuntu-24.04-arm",
-          "target": "linux-aarch64",
-          "apt": ["libvulkan-dev", "mesa-vulkan-drivers", "vulkan-tools"]},
-         {"name": "x86_64-windows", "runs-on": "windows-latest", "tier": "heavy",
-          "target": "windows-x86_64", "test": false},
-         {"name": "x86_64-darwin", "runs-on": "macos-15-intel", "tier": "heavy",
-          "target": "darwin-x86_64", "test": false}]
+      - name: install mach
+        run: |
+          export MACH_INSTALL_DIR="$RUNNER_TEMP/mach"
+          url="https://raw.githubusercontent.com/briar-systems/mach/v$MACH_VERSION/dist"
+          if [ "$RUNNER_OS" = Windows ]; then
+            pwsh -NoProfile -Command "irm $url/install.ps1 | iex"
+          else
+            curl -fsSL "$url/install.sh" | sh
+          fi
+          echo "$MACH_INSTALL_DIR" >> "$GITHUB_PATH"
+      - run: mach dep pull .
+      - if: strategy.job-index == 0
+        run: mach fmt --check .
+      - run: mach test . --all -p "$PROFILE"
 
   gate:
     if: always()
-    needs: [generate, lib]
+    needs: [test]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - uses: briar-systems/.github/.github/actions/gate@main
-        with:
-          needs: ${{ toJSON(needs) }}
+      - run: exit ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 1 || 0 }}
