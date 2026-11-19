@@ -14,14 +14,25 @@ use std.runtime;
 use std.types.option.opt;
 use std.types.result.res;
 use std.types.size.usize;
+use std.types.string.str;
 use std.types.string.str_equals;
 use vk.lib.vk;
 
+# the [link.vulkan-*] entry of the build's system, which names the concrete loader
+# (libvulkan.so / vulkan-1.dll / libMoltenVK.dylib)
+$if ($mach.build.sys == $mach.sys.windows) {
+    val VULKAN: str = "vulkan-windows";
+}
+$or ($mach.build.sys == $mach.sys.darwin) {
+    val VULKAN: str = "vulkan-darwin";
+}
+$or {
+    val VULKAN: str = "vulkan-linux";
+}
+
 # the bootstrap entry point every other Vulkan command is resolved through.
-# #[library] attribution is required on two-level-namespace targets (PE,
-# Mach-O): the logical name "vulkan" maps to the per-platform [link.vulkan-*]
-# entry that names the concrete loader (vulkan-1.dll / libMoltenVK.dylib).
-#[library("vulkan")]
+# #[library] attribution is required on two-level-namespace targets (PE, Mach-O)
+#[library(VULKAN)]
 ext fun vkGetInstanceProcAddr(instance: ptr, name: *u8) ptr;
 
 #[symbol("main")]

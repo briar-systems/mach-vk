@@ -1,49 +1,45 @@
 [project]
 id = "vk"
 version = "0.8.0"
-mach = "^6"
+mach = "^7"
 src = "src"
-out = "out/{target.name}/{profile.name}"
+work = "out/{target.name}/{profile.name}"
 
 [target.linux-x86_64]
-isa = "x86_64"
-os  = "linux"
-abi = "sysv64"
+arch = "x86_64"
+sys  = "linux"
+abi  = "sysv64"
 
 [target.linux-aarch64]
-isa = "aarch64"
-os  = "linux"
-abi = "aapcs64"
+arch = "aarch64"
+sys  = "linux"
+abi  = "aapcs64"
 
 [target.windows-x86_64]
-isa = "x86_64"
-os  = "windows"
-abi = "win64"
+arch = "x86_64"
+sys  = "windows"
+abi  = "win64"
 
 [target.darwin-x86_64]
-isa = "x86_64"
-os  = "darwin"
-abi = "sysv64"
+arch = "x86_64"
+sys  = "darwin"
+abi  = "sysv64"
 
 [profile.debug]
-opt = 0
+optimize = false
 debug = true
 simd = "scalarize"
-vectorize = false
-float_reassoc = false
 default = true
 
 [profile.release]
-opt = 2
+optimize = true
 debug = false
 simd = "scalarize"
-vectorize = true
-float_reassoc = false
 
 [artifact.vk]
 kind = "static"
 entry = "lib/vk.mach"
-out = "lib/vk"
+out = "{project.work}/lib/libvk{artifact.suffix}"
 targets = ["*"]
 link = []
 need = []
@@ -51,4 +47,4 @@ default = true
 
 [dep.std]
 git = "https://github.com/briar-systems/mach-std"
-version = "^9.0"
+ref = "branch/dev"

@@ -1,7 +1,7 @@
 # the flat public surface of the Vulkan bindings (generated)
 #
 # re-exports every generated type, handle, enum, struct, and command under one
-# namespace so a bare `use vk;` reaches the whole API as vk.load_global(...),
+# namespace so `use vk.lib.vk;` reaches the whole API as vk.load_global(...),
 # vk.InstanceCreateInfo{...}, vk.SUCCESS. the raw table stays reachable as
 # vk.c.vkCreateInstance for anyone who wants C names.
 #

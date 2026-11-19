@@ -1,88 +1,82 @@
 [project]
 id = "example"
 version = "0.1.0"
-mach = "^6"
+mach = "^7"
 src = "src"
-out = "out/{target.name}/{profile.name}"
+work = "out/{target.name}/{profile.name}"
 
 [target.linux-x86_64]
-isa = "x86_64"
-os  = "linux"
-abi = "sysv64"
-default = true
+arch = "x86_64"
+sys  = "linux"
+env  = "gnu"
+abi  = "sysv64"
 
 [target.linux-aarch64]
-isa = "aarch64"
-os  = "linux"
-abi = "aapcs64"
+arch = "aarch64"
+sys  = "linux"
+env  = "gnu"
+abi  = "aapcs64"
 
 [target.windows-x86_64]
-isa = "x86_64"
-os  = "windows"
-abi = "win64"
+arch = "x86_64"
+sys  = "windows"
+abi  = "win64"
 
 [target.darwin-x86_64]
-isa = "x86_64"
-os  = "darwin"
-abi = "sysv64"
+arch = "x86_64"
+sys  = "darwin"
+abi  = "sysv64"
 
 [profile.debug]
-opt = 0
+optimize = false
 debug = true
 simd = "scalarize"
-vectorize = false
-float_reassoc = false
 default = true
 
 [profile.release]
-opt = 2
+optimize = true
 debug = false
 simd = "scalarize"
-vectorize = true
-float_reassoc = false
 
 # the worked example, and the only thing here that links a real loader
 [artifact.example]
 kind = "bin"
 entry = "bin/main.mach"
-out = "bin/example"
+out = "{project.work}/bin/example{artifact.suffix}"
 targets = ["*"]
 link = ["vulkan-linux", "vulkan-windows", "vulkan-darwin"]
 need = []
 
-# the loader is named per platform and resolved by the system at run time.
-# linking records the dependency by name with no on-disk probe, so no SDK is
-# needed to build -- only the loader itself, at run time.
+# the loader is named per platform and resolved by the system at run time. a
+# linux build finds the shared library on the build host, so it needs the loader
+# installed for the target's architecture
 [link.vulkan-linux]
 source  = "system"
 name    = "vulkan"
-library = "vulkan"
-os      = "linux"
-isa     = "*"
-abi     = "*"
+sys     = ["linux"]
+arch    = ["*"]
+abi     = ["*"]
 export  = false
 
 [link.vulkan-windows]
 source  = "system"
 name    = "vulkan-1.dll"
-library = "vulkan"
-os      = "windows"
-isa     = "*"
-abi     = "*"
+sys     = ["windows"]
+arch    = ["*"]
+abi     = ["*"]
 export  = false
 
 [link.vulkan-darwin]
 source  = "system"
-name    = "MoltenVK"
-library = "vulkan"
-os      = "darwin"
-isa     = "*"
-abi     = "*"
+name    = "@rpath/libMoltenVK.dylib"
+sys     = ["darwin"]
+arch    = ["*"]
+abi     = ["*"]
 export  = false
 
 [dep.std]
 git = "https://github.com/briar-systems/mach-std"
-ref = "tag/v9.0.0"
+ref = "branch/dev"
 
 # the bindings from this checkout, so the example always drives the tree it ships with
 [dep.vk]

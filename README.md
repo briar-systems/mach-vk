@@ -17,7 +17,7 @@ standard loader chain a consumer drives.
 > not generated. See [`tools/README.md`](tools/README.md).
 
 ```mach
-use vk;
+use vk.lib.vk;
 
 # gipa is the platform's vkGetInstanceProcAddr — obtained from the Vulkan loader
 # (libvulkan.so.1 / vulkan-1.dll) or a windowing layer that exposes it.
@@ -119,11 +119,8 @@ demo/
                 loader and drives the binding against a live ICD; see Tests
 ```
 
-A bare `use vk;` binds the project's public module, the entry shared by its
-library artifacts marked `default = true`. `[artifact.vk]` is the only one and is
-entered through `lib/vk.mach`, so a consumer's bare `use vk;` binds
-`vk.lib.vk`, the surface. The example is such a consumer. See
-[bare project-id imports](https://github.com/briar-systems/mach/blob/main/doc/language/modules.md#bare-project-id-imports). The surface carries
+A consumer imports the surface by its source path, `use vk.lib.vk;`, which binds it
+as `vk`. The example is such a consumer. The surface carries
 `use std.runtime;` so a library `mach test` links a runnable binary.
 
 See [`tools/README.md`](tools/README.md) for the generation approach and the
